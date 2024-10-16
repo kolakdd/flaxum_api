@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  minio:
+    image: quay.io/minio/minio
+    command: server /data --console-address ":9001"
+    env_file:
+      - path: ../.env
+    volumes:
+      - minio_data:/data
+    ports:
+      - 9000:9000
+      - 9001:9001
+
+  postgres:
+    image: postgres:17-alpine
+    restart: always
+    env_file:
+      - path: ../.env
+    ports:
+      - "5432:5432"
+    volumes:
+     - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  minio_data:
+  postgres_data:
+
+
+
