@@ -2,32 +2,28 @@
 #![allow(unused)]
 
 use axum::{
-    extract::Multipart,
+    // extract::Multipart,
     routing::{get, post},
+    Extension,
     Router,
 };
-use sqlx::{query_file, query_file_as, FromRow, PgPool};
+use rust_file_share::domain::{auth, object, user};
+use rust_file_share::route::app;
+use sqlx::PgPool;
+use tower::ServiceBuilder;
+use tower_http::trace::TraceLayer;
 
+#[derive(Clone)]
+struct State {}
 
-async fn upload(mut multipart: Multipart) {
-    while let Some(field) = multipart.next_field().await.unwrap() {
-        let name = field.name().unwrap().to_string();
-        let data = field.bytes().await.unwrap();
-        println!("Length of `{}` is {} bytes", name, data.len());
-    }
+async fn foo() -> String {
+    String::from("hello")
 }
-
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let pool = PgPool::connect(&dotenvy::var("DB_URL")?).await?;
-    sqlx::migrate!("./db/migrations").run(&pool).await?;
-
-    let app = Router::new()
-        .route("/hello", get(|| async { "hello" }))
-        .route("/upload", post(upload));
-
-    println!("Running on http://localhost:3000");
+    let app = app().await?;
+    dbg!("Running on http://localhost:3000");
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
