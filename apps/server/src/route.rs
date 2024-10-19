@@ -9,8 +9,7 @@ use crate::{
 use axum::{
     response::IntoResponse,
     routing::{get, post},
-    Router,
-    Json,
+    Json, Router,
 };
 use sqlx::{Pool, Postgres};
 use tower_http::trace::TraceLayer;

@@ -49,7 +49,6 @@ impl Config {
     fn clean_and_validate(&mut self) -> Result<(), Error> {
         // Database
         let database_url = Url::parse(&self.database.url).unwrap();
-        println!("{}", database_url.scheme());
         if database_url.scheme() != POSTGRES_SCHEME {
             return Err(Error::InvalidArgument(String::from(
                 "config: database_url is not a valid postgres URL",
