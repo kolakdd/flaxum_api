@@ -1,15 +1,13 @@
+use crate::scalar::Id;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use crate::scalar::Id;
 use sqlx::{postgres::PgRow, Row};
-
 
 #[derive(Serialize)]
 #[allow(non_snake_case)]
-pub struct CreateUserOut{
+pub struct CreateUserOut {
     pub email: String,
     pub create_date: Option<chrono::DateTime<chrono::Utc>>,
-
 }
 
 #[derive(Debug, FromRow, Deserialize, Serialize, Clone)]
@@ -23,7 +21,6 @@ pub struct User {
     pub storage_size: i64,
 }
 
-
 impl User {
     pub fn new(
         id: Id,
@@ -32,10 +29,15 @@ impl User {
         create_date: Option<chrono::DateTime<chrono::Utc>>,
         storage_size: i64,
     ) -> User {
-        User { id, email, password, create_date, storage_size }
+        User {
+            id,
+            email,
+            password,
+            create_date,
+            storage_size,
+        }
     }
 }
-
 
 impl From<PgRow> for User {
     fn from(value: PgRow) -> Self {

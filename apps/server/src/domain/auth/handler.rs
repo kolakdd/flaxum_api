@@ -1,4 +1,9 @@
-use crate::{domain::user::model::{User, CreateUserOut}, route::AppState, scalar::Id, utils::{crypto, jwt}};
+use crate::{
+    domain::user::model::{CreateUserOut, User},
+    route::AppState,
+    scalar::Id,
+    utils::{crypto, jwt},
+};
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use chrono;
 use serde::{Deserialize, Serialize};
@@ -29,7 +34,7 @@ pub async fn register_user(
         return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
     }
     let hash = hash.unwrap();
-    
+
     let res = sqlx::query_as!(
         CreateUserOut,
         "INSERT INTO users (id, email, password, create_date) VALUES ($1, $2, $3, $4) RETURNING email, create_date",
@@ -50,16 +55,14 @@ pub async fn register_user(
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct LoginDto {
     pub email: String,
     pub password: String,
 }
 
-
 pub async fn access_token(
-    State(state): State<Arc<AppState>>,
+    State(app_state): State<Arc<AppState>>,
     Json(body): Json<LoginDto>,
 ) -> impl IntoResponse {
     if let Err(e) = body.validate() {
@@ -69,7 +72,7 @@ pub async fn access_token(
     let email = body.email.to_string();
 
     let res = sqlx::query_as!(User, "SELECT * FROM users WHERE email = $1", email)
-        .fetch_one(&state.db)
+        .fetch_one(&app_state.db)
         .await;
 
     match res {
@@ -77,10 +80,13 @@ pub async fn access_token(
             let password = body.password.to_string();
             let hash = user.password;
 
-            let token = jwt::sign(user.id).unwrap();
-
             match crypto::verify(password, hash).await {
-                Ok(true) => Ok((StatusCode::OK, Json(json!({ "status": "success", "token": token })))),
+                Ok(true) => Ok((
+                    StatusCode::OK,
+                    Json(
+                        json!({ "status": "success", "token": jwt::create_token(user.id).unwrap() }),
+                    ),
+                )),
                 Ok(false) => Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string())),
                 Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
             }
@@ -91,6 +97,5 @@ pub async fn access_token(
         )),
     }
 }
-
 
 pub async fn refresh_token() {}
