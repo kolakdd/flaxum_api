@@ -1,33 +1,24 @@
 use std::sync::Arc;
 
+use crate::utils::jwt;
 use crate::{
+    config,
     config::Config,
     db,
     domain::{auth, object, user},
     Error,
 };
+use axum::extract::DefaultBodyLimit;
 use axum::{
-    response::IntoResponse,
+    middleware,
     routing::{get, post},
-    Json, Router,
+    Router,
 };
 use sqlx::{Pool, Postgres};
+use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::trace::TraceLayer;
 
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
-
-async fn health_checker_handler() -> impl IntoResponse {
-    const MESSAGE: &str = "Hello!";
-
-    let json_response = serde_json::json!({
-        "status": "success",
-        "message": MESSAGE
-    });
-
-    Json(json_response)
-}
-
+#[derive(Debug)]
 pub struct AppState {
     pub db: Pool<Postgres>,
 }
@@ -38,13 +29,9 @@ pub async fn app() -> Result<Router, Error> {
     let db = db::connect(&config.database).await?;
     db::migrate(&db.clone()).await?;
 
-    #[derive(OpenApi)]
-    struct ApiDoc;
-
     let app_state = Arc::new(AppState { db: db.clone() });
 
-    let mut app = Router::new()
-        .route("/hello", get(health_checker_handler))
+    let app = Router::new()
         // auth
         .route(
             "/user/list",
@@ -55,6 +42,7 @@ pub async fn app() -> Result<Router, Error> {
             get(user::handler::get_user)
                 .with_state(app_state.clone())
                 .put(user::handler::update_user)
+                .with_state(app_state.clone())
                 .delete(user::handler::delete_user)
                 .with_state(app_state.clone()),
         )
@@ -71,10 +59,23 @@ pub async fn app() -> Result<Router, Error> {
             "/refresh_token",
             get(auth::handler::refresh_token).with_state(app_state.clone()),
         )
+        //
+        .route(
+            "/folder",
+            post(object::handler::create_folder)
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
+                .with_state(app_state.clone()),
+        )
         // multipart
         .route(
             "/upload",
-            post(object::handler::upload_file).with_state(app_state.clone()),
+            post(object::handler::upload_file)
+                // .layer(RequestBodyLimitLayer::new(config::SIZE_1GB))
+                // .layer(DefaultBodyLimit::disable())
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
+                .with_state(app_state.clone()),
+
+
         )
         .route(
             "/download",
@@ -87,16 +88,16 @@ pub async fn app() -> Result<Router, Error> {
                 .with_state(app_state.clone())
                 .put(object::handler::update_info)
                 .with_state(app_state.clone())
-                .delete(object::handler::delete_file)
+                .delete(object::handler::delete_object)
                 .with_state(app_state.clone()),
         )
         .route(
             "/objects",
-            get(object::handler::get_list).with_state(app_state.clone()),
+            get(object::handler::get_own_list)
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
+                .with_state(app_state.clone()),
         )
         //
         .layer(TraceLayer::new_for_http());
-
-    app = app.merge(SwaggerUi::new("/swagger").url("/api-doc/openapi.json", ApiDoc::openapi()));
     Ok(app)
 }

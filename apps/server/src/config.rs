@@ -3,6 +3,8 @@ use dotenv;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+pub const SIZE_1GB: usize = 1024 * 1024 * 1024;
+
 const ENV_DATABASE_URL: &str = "DATABASE_URL";
 const ENV_DATABASE_POOL_SIZE: &str = "DATABASE_POOL_SIZE";
 const POSTGRES_SCHEME: &str = "postgres";
