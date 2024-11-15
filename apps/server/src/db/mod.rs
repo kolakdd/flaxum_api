@@ -22,13 +22,16 @@ pub async fn connect(database: &config::Database) -> Result<DB, Error> {
 }
 
 pub async fn migrate(db: &DB) -> Result<(), Error> {
+    println!("Migrating database...");
     match sqlx::migrate!("db/migrations").run(db).await {
         Ok(()) => Ok(()),
         Err(err) => {
             tracing::error!("{}", &err);
+            println!("Migrate Error... {err}");
             Err(err)
         }
     }?;
+    println!("Successfully migrated!...");
 
     Ok(())
 }

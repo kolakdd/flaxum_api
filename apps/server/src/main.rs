@@ -26,7 +26,6 @@ async fn main() -> anyhow::Result<()> {
     logger::init(&config)?;
     let app = app().await?;
     dbg!("Running on http://localhost:3000");
-
     let listener = TcpListener::bind("0.0.0.0:3000").await?;
     axum::serve(listener, app).await?;
     Ok(())

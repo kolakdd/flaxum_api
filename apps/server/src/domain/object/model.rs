@@ -11,11 +11,11 @@ pub struct Object {
     pub parent_id: Option<Uuid>,
     pub name: String,
     pub size: Option<i64>,
-    #[serde(rename = "ownerId")]
+    // #[serde(rename = "ownerId")]
     pub owner_id: String,
-    #[serde(rename = "createDate")]
+    // #[serde(rename = "createDate")]
     pub create_date: Option<chrono::DateTime<chrono::Utc>>,
-    #[serde(rename = "updateDate")]
+    // #[serde(rename = "updateDate")]
     pub update_date: Option<chrono::DateTime<chrono::Utc>>,
 }
 

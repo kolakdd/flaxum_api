@@ -6,7 +6,7 @@ use axum::{
     extract::Request,
     http::{header, StatusCode},
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
     Json,
 };
 use chrono::{Duration, Utc};
