@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused)]
 
+use std::fs;
 use axum::{
     routing::{get, post},
     Extension, Router,
@@ -23,6 +24,7 @@ struct State {}
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = Arc::new(Config::load()?);
+    fs::create_dir("tmp")?;
     logger::init(&config)?;
     let app = app().await?;
     dbg!("Running on http://localhost:3000");
