@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
 use tokio::net::TcpListener;
-// use tokio::task;
+use tokio::task;
 
-// use flaxum::utils::watcher;
+use flaxum::utils::watcher;
 use flaxum::{config::Config, logger, route::app};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = Arc::new(Config::load().await?);
 
-    // let worker_config = config.clone();
-    // task::spawn(async move {
-    //     let _ = watcher::file_lisener_worker(&worker_config).await;
-    // });
+    let worker_config = config.clone();
+    task::spawn(async move {
+        let _ = watcher::file_lisener_worker(&worker_config).await;
+    });
 
     logger::init(&config)?;
     let app = app().await?;

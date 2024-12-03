@@ -137,85 +137,77 @@ pub async fn create_folder(
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct UploadFileDto {
-    parent_id: Option<Uuid>,
+    parent_id: Option<Id>,
 }
 
-// pub async fn upload_file(
-//     State(state): State<Arc<AppState>>,
-//     query: Query<UploadFileDto>,
-//     mut multipart: Multipart,
-// ) -> impl IntoResponse {
-//     let current_user = USER.with(|u| u.clone());
-//
-//     while let Some(field) = multipart.next_field().await.unwrap() {
-//         let file_name = field.file_name().unwrap().to_string();
-//         let data = field.bytes().await.unwrap();
-//
-//         let mut tx = state.db.begin().await.unwrap();
-//         let new_id = Id::new_v4();
-//         let res = sqlx::query_as!(
-//         Object,
-//         "INSERT INTO objects (id, parent_id, name, size, owner_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-//             new_id,
-//             query.parent_id,
-//             &file_name,
-//             data.len() as i64,
-//             &current_user.id
-//     )
-//             .fetch_one(&mut *tx)
-//             .await;
-//         let mut data_buffer = data.reader();
-//         let object_name = format!("{}/{}", &current_user.id, new_id);
-//         let mut args = PutObjectArgs::new(
-//             &state.upload_bucket,
-//             &object_name,
-//             &mut data_buffer,
-//             None,
-//             None,
-//         )
-//         .unwrap();
-//         let a = state.s3.put_object(&mut args).await.unwrap();
-//         println!("{:#?}", a);
-//
-//         tx.commit().await.unwrap();
-//
-//         match res {
-//             Ok(object) => {
-//                 return Ok((
-//                     StatusCode::CREATED,
-//                     Json(json!({ "status": "success", "data": object})),
-//                 ))
-//             }
-//             Err(_) => return Err((StatusCode::BAD_REQUEST, "bad req".to_string())),
-//         };
-//     }
-//     Err((StatusCode::BAD_REQUEST, "bad req".to_string()))
-// }
-
-pub async fn download_file() {}
-
 pub async fn upload_file(
-    // State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
+    OptionalQuery(query): OptionalQuery<UploadFileDto>,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
+    let current_user = USER.with(|u| u.clone());
+    let query = query.unwrap_or_default();
+
     while let Some(field) = multipart.next_field().await.unwrap() {
         let field_name = field.name().unwrap().to_string(); // check "file"
+        if field_name != "file" {
+            continue;
+        }
         let file_name = field.file_name().unwrap().to_string();
         let content_type = field.content_type().unwrap().to_string();
         println!("{} {} {}", field_name, file_name, content_type);
+
         let data = field.bytes().await.unwrap();
+        let file_length = data.len();
+        let file_path = &format!("tmp/{}.{}", current_user.id, Id::new_v4());
 
-        let path_1 = &format!("tmp/{}", Id::new_v4());
-        let path = Path::new(path_1);
+        let file_id = Id::new_v4();
+        let mut tx = state.db.begin().await.unwrap();
 
-        let mut file = fs::File::create(path).unwrap();
-        let _ = file.write_all(&data);
+        let q = r#"
+        INSERT INTO "Object" 
+        (id, parent_id, owner_id, creator_id, name, size, type) 
+        VALUES 
+        ($1, $2, $3, $4, $5, $6, $7) 
+        RETURNING 
+        id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated
+        "#;
+        let res = sqlx::query_as::<_, Object>(q)
+            .bind(file_id)
+            .bind(query.parent_id)
+            .bind(current_user.id)
+            .bind(current_user.id)
+            .bind(file_name)
+            .bind(file_length as i64)
+            .bind(ObjectType::File)
+            .fetch_one(&mut *tx)
+            .await;
 
-        if true {
-            return Ok(StatusCode::CREATED);
-        }
+        let mut file = fs::File::create(Path::new(file_path)).unwrap();
+        let ans = file.write_all(&data);
+        println!("{:?}", ans);
+
+        tx.commit().await.unwrap();
+
+        match res {
+            Ok(object) => {
+                return Ok((
+                    StatusCode::CREATED,
+                    Json(json!({ "status": "success", "data": object})),
+                ));
+            }
+            Err(e) => {
+                println!("{:?}", e);
+                return Err((StatusCode::BAD_REQUEST, "bad req".to_string()));
+            }
+        };
     }
-    Err((StatusCode::BAD_REQUEST, "bad req".to_string()))
+    Err((
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "internal error".to_string(),
+    ))
 }
+
+pub async fn download_file() {}

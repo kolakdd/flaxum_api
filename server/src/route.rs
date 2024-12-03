@@ -1,5 +1,4 @@
-use std::sync::Arc;
-
+use crate::config;
 use crate::utils::jwt;
 use crate::{
     config::Config,
@@ -14,6 +13,8 @@ use axum::{
     Router,
 };
 use sqlx::{Pool, Postgres};
+use std::sync::Arc;
+use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::trace::TraceLayer;
 
 #[derive(Debug)]
@@ -72,8 +73,8 @@ pub async fn app() -> Result<Router, Error> {
         .route(
             "/upload",
             post(object::handler::upload_file)
-                // .layer(RequestBodyLimitLayer::new(config::SIZE_1GB))
-                // .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
+                .layer(RequestBodyLimitLayer::new(config::SIZE_1GB))
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
                 .with_state(app_state.clone()),
         )
         .route(
@@ -92,7 +93,7 @@ pub async fn app() -> Result<Router, Error> {
         )
         .route(
             "/objects",
-            get({ object::handler::get_own_list })
+            get(object::handler::get_own_list)
                 .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
                 .with_state(app_state.clone()),
         )
