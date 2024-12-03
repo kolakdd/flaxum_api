@@ -4,21 +4,15 @@ use crate::{route::AppState, scalar::Id};
 use axum::extract::{Multipart, Query, State};
 use axum::response::IntoResponse;
 use axum::Json;
-use bytes::Buf;
-use futures::TryStreamExt;
 use http::StatusCode;
-use minio::s3::args::PutObjectArgs;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::io::{Read, Write};
+use std::fs;
+use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 use uuid::Uuid;
 use validator::Validate;
-use std::fs;
-use tokio::io::{AsyncRead, AsyncWrite, BufWriter};
-use tokio_util::io::StreamReader;
-use std::io;
 
 #[derive(Deserialize)]
 pub struct Pagination {
@@ -42,20 +36,20 @@ pub async fn get_own_list(
     let Query(pagination) = pagination.unwrap_or_default();
     let current_user = USER.with(|u| u.clone());
 
-    let res = sqlx::query_as!(
-        Object,
-        "SELECT *
-        FROM public.objects
-        where owner_id = $3
-        limit $1
-        offset $2;",
-        pagination.limit as i64,
-        pagination.offset as i64,
-        current_user.id
-    )
-    .fetch_all(&state.db)
-    .await;
-
+    // let res = sqlx::query_as!(
+    //     Object,
+    //     "SELECT *
+    //     FROM public.object
+    //     where owner_id = $3
+    //     limit $1
+    //     offset $2;",
+    //     pagination.limit as i64,
+    //     pagination.offset as i64,
+    //     current_user.id
+    // )
+    // .fetch_all(&state.db)
+    // .await;
+    let res: std::result::Result<&str, StatusCode> = Ok("lol");
     match res {
         Ok(object_list) => Ok((
             StatusCode::OK,
@@ -90,18 +84,18 @@ pub async fn create_folder(
     let current_user = USER.with(|u| u.clone());
 
     if body.parent_id.is_none() {}
-    let res = sqlx::query_as!(
-        Object,
-        "INSERT INTO objects (id, parent_id, name, size, owner_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-        Id::new_v4(),
-        body.parent_id,
-        body.name,
-        0,
-        current_user.id,
-    )
-        .fetch_one(&state.db)
-        .await;
-
+    // let res = sqlx::query_as!(
+    //     Object,
+    //     "INSERT INTO object (id, parent_id, name, size, owner_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+    //     Id::new_v4(),
+    //     body.parent_id,
+    //     body.name,
+    //     0,
+    //     current_user.id,
+    // )
+    //     .fetch_one(&state.db)
+    //     .await;
+    let res: std::result::Result<&str, StatusCode> = Ok("lol");
     match res {
         Ok(object) => Ok((
             StatusCode::CREATED,
@@ -176,7 +170,7 @@ pub async fn upload_file(
 ) -> impl IntoResponse {
     while let Some(field) = multipart.next_field().await.unwrap() {
         let field_name = field.name().unwrap().to_string(); // check "file"
-        let file_name = field.file_name().unwrap().to_string(); 
+        let file_name = field.file_name().unwrap().to_string();
         let content_type = field.content_type().unwrap().to_string();
         println!("{} {} {}", field_name, file_name, content_type);
         let data = field.bytes().await.unwrap();
@@ -186,8 +180,8 @@ pub async fn upload_file(
 
         let mut file = fs::File::create(path).unwrap();
         let _ = file.write_all(&data);
-        
-        if true{
+
+        if true {
             return Ok(StatusCode::CREATED);
         }
     }

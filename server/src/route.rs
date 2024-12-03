@@ -7,13 +7,12 @@ use crate::{
     domain::{auth, object, user},
     Error,
 };
+use aws_sdk_s3 as s3;
 use axum::{
     middleware,
     routing::{get, post},
     Router,
 };
-use minio::s3;
-use minio::s3::args::{BucketExistsArgs, MakeBucketArgs};
 use sqlx::{Pool, Postgres};
 use tower_http::trace::TraceLayer;
 
@@ -21,42 +20,17 @@ use tower_http::trace::TraceLayer;
 pub struct AppState {
     pub db: Pool<Postgres>,
     pub s3: s3::client::Client,
-    pub upload_bucket: String,
 }
 
 pub async fn app() -> Result<Router, Error> {
-    let config = Arc::new(Config::load()?);
-
-    //todo: вынести init'ы
-
+    let config = Arc::new(Config::load().await?);
     // init migration
     let db = db::connect(&config.database).await?;
     db::migrate(&db.clone()).await?;
 
-    // init buckets
-    let s3 = s3::client::Client::new(
-        config.s3.url.clone(),
-        Some(Box::new(config.s3.static_provider.clone())),
-        None,
-        None,
-    )
-    .unwrap();
-
-    let exists = s3
-        .bucket_exists(&BucketExistsArgs::new(&config.s3.upload_bucket).unwrap())
-        .await
-        .unwrap();
-
-    if !exists {
-        s3.make_bucket(&MakeBucketArgs::new(&config.s3.upload_bucket).unwrap())
-            .await
-            .unwrap();
-    }
-
     let app_state = Arc::new(AppState {
         db: db.clone(),
-        s3: s3.clone(),
-        upload_bucket: config.s3.upload_bucket.clone(),
+        s3: config.s3_client.clone(),
     });
 
     // app
