@@ -1514,6 +1514,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "flaxum"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "anyhow",
+ "argon2",
+ "aws-config",
+ "aws-sdk-s3",
+ "axum",
+ "axum-extra",
+ "bytes",
+ "chrono",
+ "dotenv",
+ "dotenvy",
+ "futures",
+ "http 1.1.0",
+ "http-body-util",
+ "hyper 0.14.31",
+ "jsonwebtoken",
+ "lazy_static",
+ "log",
+ "notify",
+ "rand",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "validator",
+]
+
+[[package]]
 name = "flume"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3050,45 +3089,6 @@ dependencies = [
  "spki 0.7.3",
  "subtle",
  "zeroize",
-]
-
-[[package]]
-name = "rust_file_share"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "anyhow",
- "argon2",
- "aws-config",
- "aws-sdk-s3",
- "axum",
- "axum-extra",
- "bytes",
- "chrono",
- "dotenv",
- "dotenvy",
- "futures",
- "http 1.1.0",
- "http-body-util",
- "hyper 0.14.31",
- "jsonwebtoken",
- "lazy_static",
- "log",
- "notify",
- "rand",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror",
- "tokio",
- "tokio-util",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
- "validator",
 ]
 
 [[package]]

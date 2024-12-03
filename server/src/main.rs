@@ -3,8 +3,8 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 // use tokio::task;
 
-// use rust_file_share::utils::watcher;
-use rust_file_share::{config::Config, logger, route::app};
+// use flaxum::utils::watcher;
+use flaxum::{config::Config, logger, route::app};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
