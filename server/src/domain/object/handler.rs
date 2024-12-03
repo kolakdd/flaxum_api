@@ -1,5 +1,5 @@
 use crate::common::Pagination;
-use crate::domain::object::model::Object;
+use crate::domain::object::model::{Object, ObjectType};
 use crate::domain::user::model::User;
 use crate::utils::jwt::USER;
 use crate::{route::AppState, scalar::Id};
@@ -10,8 +10,8 @@ use axum_extra::extract::OptionalQuery;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::query_builder::QueryBuilder;
 use sqlx::postgres::Postgres;
+use sqlx::query_builder::QueryBuilder;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -26,7 +26,11 @@ pub struct GetOwnListDto {
     pub parent_id: Option<Uuid>,
 }
 
-fn get_own_list_query <'a>(current_user: User, body: GetOwnListDto, pagination: &Pagination) -> QueryBuilder<'a, Postgres> {
+fn get_own_list_query<'a>(
+    current_user: User,
+    body: GetOwnListDto,
+    pagination: &Pagination,
+) -> QueryBuilder<'a, Postgres> {
     let mut query = QueryBuilder::new(
         r#"SELECT *
         FROM "Object"
@@ -60,25 +64,22 @@ pub async fn get_own_list(
     }
     let body: GetOwnListDto = payload.unwrap_or_default().0;
     let current_user = USER.with(|u| u.clone());
-    println!("here2");
 
     let mut q = get_own_list_query(current_user, body, &pagination);
 
-    let res = q.build()
-        .fetch_all(&state.db)
-        .await;
+    let res = q.build().fetch_all(&state.db).await;
 
     let objects: Result<Vec<Object>, sqlx::Error> = res.map(|rows| {
-            rows.into_iter()
-                .map(Object::from) // Используем реализацию From<PgRow> for Object
-                .collect()
-        });
+        rows.into_iter()
+            .map(Object::from) // Используем реализацию From<PgRow> for Object
+            .collect()
+    });
 
     match objects {
         Ok(object_list) => Ok((
             StatusCode::OK,
             Json(
-                json!({ "status": "success", "items": object_list, "limit": pagination.limit , "offset": pagination.offset }),
+                json!({ "status": "success", "data": object_list, "limit": pagination.limit , "offset": pagination.offset }),
             ),
         )),
         Err(e) => {
@@ -110,25 +111,29 @@ pub async fn create_folder(
     }
     let current_user = USER.with(|u| u.clone());
 
-    if body.parent_id.is_none() {}
-    // let res = sqlx::query_as!(
-    //     Object,
-    //     "INSERT INTO object (id, parent_id, name, size, owner_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-    //     Id::new_v4(),
-    //     body.parent_id,
-    //     body.name,
-    //     0,
-    //     current_user.id,
-    // )
-    //     .fetch_one(&state.db)
-    //     .await;
-    let res: std::result::Result<&str, StatusCode> = Ok("lol");
+    // if body.parent_id.is_none() {}
+
+    let q = r#"INSERT INTO "Object" (id, parent_id, owner_id, creator_id, name, size, type) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated"#;
+    let res = sqlx::query_as::<_, Object>(q)
+        .bind(Id::new_v4())
+        .bind(body.parent_id)
+        .bind(current_user.id)
+        .bind(current_user.id)
+        .bind(body.name)
+        .bind(0)
+        .bind(ObjectType::Dir)
+        .fetch_one(&state.db)
+        .await;
+
     match res {
         Ok(object) => Ok((
             StatusCode::CREATED,
             Json(json!({ "status": "success", "data": object})),
         )),
-        Err(_) => Err((StatusCode::NOT_FOUND, "Failed to create folder".to_string())),
+        Err(e) => {
+            println!("{e}");
+            Err((StatusCode::NOT_FOUND, "Failed to create folder".to_string()))
+        }
     }
 }
 

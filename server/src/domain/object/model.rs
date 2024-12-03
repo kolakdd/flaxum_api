@@ -4,9 +4,9 @@ use sqlx::FromRow;
 use sqlx::{postgres::PgRow, Row};
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
+#[derive(Clone, Debug, sqlx::Type, Deserialize, Serialize)]
 #[sqlx(type_name = "objectType", rename_all = "lowercase")]
-pub enum UserRole {
+pub enum ObjectType {
     Dir,
     File,
 }
@@ -20,10 +20,11 @@ pub struct Object {
     pub creator_id: Id,
     pub name: String,
     pub size: Option<i64>,
-    pub type_: UserRole,
-    pub mime_type: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(rename = "type")]
+    pub type_: ObjectType,
+    pub mimetype: Option<String>,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: Option<chrono::NaiveDateTime>,
     pub in_trash: bool,
     pub eliminated: bool,
 }
@@ -37,10 +38,10 @@ impl Object {
         creator_id: Id,
         name: String,
         size: Option<i64>,
-        type_: UserRole,
-        mime_type: String,
-        created_at: chrono::DateTime<chrono::Utc>,
-        updated_at: Option<chrono::DateTime<chrono::Utc>>,
+        type_: ObjectType,
+        mimetype: Option<String>,
+        created_at: chrono::NaiveDateTime,
+        updated_at: Option<chrono::NaiveDateTime>,
         in_trash: bool,
         eliminated: bool,
     ) -> Object {
@@ -52,7 +53,7 @@ impl Object {
             name,
             size,
             type_,
-            mime_type,
+            mimetype,
             created_at,
             updated_at,
             in_trash,
@@ -71,7 +72,7 @@ impl From<PgRow> for Object {
             value.get("name"),
             value.get("size"),
             value.get("type"),
-            value.get("mime_type"),
+            value.get("mimetype"),
             value.get("created_at"),
             value.get("updated_at"),
             value.get("in_trash"),
