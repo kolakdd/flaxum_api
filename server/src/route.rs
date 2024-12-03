@@ -79,7 +79,9 @@ pub async fn app() -> Result<Router, Error> {
         )
         .route(
             "/download",
-            post(object::handler::download_file).with_state(app_state.clone()),
+            get(object::handler::download_file)
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
+                .with_state(app_state.clone()),
         )
         // objects
         .route(

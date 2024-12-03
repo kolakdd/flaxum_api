@@ -12,7 +12,7 @@ async fn main() -> anyhow::Result<()> {
 
     let worker_config = config.clone();
     task::spawn(async move {
-        let _ = watcher::file_lisener_worker(&worker_config).await;
+        let _ = watcher::file_lisener_worker(worker_config).await;
     });
 
     logger::init(&config)?;

@@ -3,10 +3,11 @@ use crate::domain::object::model::{Object, ObjectType};
 use crate::domain::user::model::User;
 use crate::utils::jwt::USER;
 use crate::{route::AppState, scalar::Id};
+use aws_sdk_s3::presigning::PresigningConfig;
 use axum::extract::{Multipart, State};
 use axum::response::IntoResponse;
 use axum::Json;
-use axum_extra::extract::OptionalQuery;
+use axum_extra::extract::{OptionalQuery, Query};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -16,6 +17,7 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -161,9 +163,10 @@ pub async fn upload_file(
 
         let data = field.bytes().await.unwrap();
         let file_length = data.len();
-        let file_path = &format!("tmp/{}.{}", current_user.id, Id::new_v4());
 
         let file_id = Id::new_v4();
+        let file_path = &format!("tmp/{}.{}", current_user.id, file_id);
+
         let mut tx = state.db.begin().await.unwrap();
 
         let q = r#"
@@ -210,4 +213,59 @@ pub async fn upload_file(
     ))
 }
 
-pub async fn download_file() {}
+#[derive(Serialize, Deserialize)]
+pub struct DownloadFileDto {
+    file_id: Id,
+}
+
+pub async fn download_file(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<DownloadFileDto>,
+) -> impl IntoResponse {
+    let current_user = USER.with(|u| u.clone());
+    println!("1");
+    let q = r#"
+    SELECT id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated FROM "Object"
+    WHERE id = $1 "#;
+    let res = sqlx::query_as::<_, Object>(q)
+        .bind(query.file_id)
+        .fetch_one(&state.db)
+        .await;
+    println!("2");
+
+    match res {
+        Ok(object) => {
+            println!("3");
+
+            let expires_in: u64 = 900; // 15 min
+            let expires_in = Duration::from_secs(expires_in);
+            let presigned_request = state
+                .s3
+                .get_object()
+                .bucket("objects")
+                .key(format!("{}/{}", object.owner_id, object.id))
+                .presigned(PresigningConfig::expires_in(expires_in).unwrap())
+                .await
+                .unwrap();
+
+            let valid_until = chrono::offset::Local::now() + expires_in;
+            println!("6");
+
+            Ok((
+                StatusCode::CREATED,
+                Json(
+                    json!({ "status": "success", "data": presigned_request.uri(), "valid_until": valid_until }),
+                ),
+            ))
+        }
+        Err(err) => {
+        println!("4");
+
+            eprintln!("Database error: {err}");
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to download file".to_string(),
+            ))
+        }
+    }
+}
