@@ -11,7 +11,6 @@ pub enum UserRole {
     User,
 }
 
-
 #[derive(Serialize)]
 pub struct ExistsOut {
     pub exists: bool,
@@ -24,7 +23,6 @@ impl<'r> FromRow<'r, PgRow> for ExistsOut {
         })
     }
 }
-
 
 #[derive(Serialize)]
 pub struct CreateUserOut {
@@ -43,17 +41,10 @@ impl<'r> FromRow<'r, PgRow> for CreateUserOut {
 
 #[allow(clippy::too_many_arguments)]
 impl CreateUserOut {
-    pub fn new(
-        email: String,
-        created_at: chrono::NaiveDateTime,
-    ) -> CreateUserOut {
-        CreateUserOut {
-            email,
-            created_at,
-        }
+    pub fn new(email: String, created_at: chrono::NaiveDateTime) -> CreateUserOut {
+        CreateUserOut { email, created_at }
     }
 }
-
 
 #[derive(Debug, FromRow, Deserialize, Serialize, Clone)]
 pub struct User {

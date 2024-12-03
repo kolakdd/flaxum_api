@@ -20,8 +20,6 @@ pub enum Error {
     AlreadyExists(String),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
-
 impl std::convert::From<sqlx::Error> for Error {
     fn from(err: sqlx::Error) -> Self {
         match err {

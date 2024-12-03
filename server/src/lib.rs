@@ -3,6 +3,7 @@ pub mod domain;
 mod error;
 pub mod route;
 pub use error::Error;
+pub mod common;
 pub mod db;
 pub mod env;
 pub mod logger;

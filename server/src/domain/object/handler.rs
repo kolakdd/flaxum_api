@@ -1,12 +1,17 @@
+use crate::common::Pagination;
 use crate::domain::object::model::Object;
+use crate::domain::user::model::User;
 use crate::utils::jwt::USER;
 use crate::{route::AppState, scalar::Id};
-use axum::extract::{Multipart, Query, State};
+use axum::extract::{Multipart, State};
 use axum::response::IntoResponse;
 use axum::Json;
+use axum_extra::extract::OptionalQuery;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use sqlx::query_builder::QueryBuilder;
+use sqlx::postgres::Postgres;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -14,50 +19,72 @@ use std::sync::Arc;
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Deserialize)]
-pub struct Pagination {
-    limit: usize,
-    offset: usize,
+#[derive(Serialize, Deserialize, Default)]
+pub struct GetOwnListDto {
+    /// None при получении из корневой папки.
+    /// Иначе из любой собственной папки
+    pub parent_id: Option<Uuid>,
 }
 
-impl Default for Pagination {
-    fn default() -> Self {
-        Self {
-            limit: 20,
-            offset: 0,
-        }
-    }
+fn get_own_list_query <'a>(current_user: User, body: GetOwnListDto, pagination: &Pagination) -> QueryBuilder<'a, Postgres> {
+    let mut query = QueryBuilder::new(
+        r#"SELECT *
+        FROM "Object"
+        where owner_id = "#,
+    );
+    query.push_bind(current_user.id);
+
+    if let Some(parent_id) = body.parent_id {
+        query.push("AND parent_id = ");
+        query.push_bind(parent_id);
+    };
+
+    query.push(" limit ");
+    query.push_bind(pagination.limit);
+
+    query.push(" offset ");
+    query.push_bind(pagination.offset);
+
+    query
 }
 
+/// Получение собственных объектов
 pub async fn get_own_list(
     State(state): State<Arc<AppState>>,
-    pagination: Option<Query<Pagination>>,
+    OptionalQuery(pagination): OptionalQuery<Pagination>,
+    payload: Option<Json<GetOwnListDto>>,
 ) -> impl IntoResponse {
-    let Query(pagination) = pagination.unwrap_or_default();
+    let pagination = pagination.unwrap_or_default();
+    if let Err(e) = pagination.validate() {
+        return Err((StatusCode::BAD_REQUEST, e.to_string()));
+    }
+    let body: GetOwnListDto = payload.unwrap_or_default().0;
     let current_user = USER.with(|u| u.clone());
+    println!("here2");
 
-    // let res = sqlx::query_as!(
-    //     Object,
-    //     "SELECT *
-    //     FROM public.object
-    //     where owner_id = $3
-    //     limit $1
-    //     offset $2;",
-    //     pagination.limit as i64,
-    //     pagination.offset as i64,
-    //     current_user.id
-    // )
-    // .fetch_all(&state.db)
-    // .await;
-    let res: std::result::Result<&str, StatusCode> = Ok("lol");
-    match res {
+    let mut q = get_own_list_query(current_user, body, &pagination);
+
+    let res = q.build()
+        .fetch_all(&state.db)
+        .await;
+
+    let objects: Result<Vec<Object>, sqlx::Error> = res.map(|rows| {
+            rows.into_iter()
+                .map(Object::from) // Используем реализацию From<PgRow> for Object
+                .collect()
+        });
+
+    match objects {
         Ok(object_list) => Ok((
             StatusCode::OK,
             Json(
-                json!({ "status": "success", "data": object_list, "limit": pagination.limit , "offset": pagination.offset }),
+                json!({ "status": "success", "items": object_list, "limit": pagination.limit , "offset": pagination.offset }),
             ),
         )),
-        Err(_) => Err((StatusCode::NOT_FOUND, "Fail get list".to_string())),
+        Err(e) => {
+            println!("{e}");
+            Err((StatusCode::NOT_FOUND, "Fail get list".to_string()))
+        }
     }
 }
 

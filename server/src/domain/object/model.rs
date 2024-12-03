@@ -28,6 +28,7 @@ pub struct Object {
     pub eliminated: bool,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Object {
     pub fn new(
         id: Id,

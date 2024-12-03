@@ -92,7 +92,7 @@ pub async fn app() -> Result<Router, Error> {
         )
         .route(
             "/objects",
-            get(object::handler::get_own_list)
+            get({ object::handler::get_own_list })
                 .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
                 .with_state(app_state.clone()),
         )

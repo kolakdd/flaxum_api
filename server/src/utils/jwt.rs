@@ -62,6 +62,8 @@ task_local! {
     pub static USER: User;
 }
 
+/// Dependency Injection. Проверка что пользователь авторизован.
+/// Создется для глобального static USER внутри task;
 pub async fn auth(
     State(app_state): State<Arc<AppState>>,
     req: Request,
@@ -72,18 +74,20 @@ pub async fn auth(
         .get(header::AUTHORIZATION)
         .and_then(|header| header.to_str().ok())
         .ok_or(StatusCode::UNAUTHORIZED)?;
-
     if let Ok(current_user) = validate_token(app_state, auth_token).await {
+        println!("OK!");
         Ok(USER.scope(current_user, next.run(req)).await)
     } else {
         Err(StatusCode::UNAUTHORIZED)
     }
 }
 
+/// Валидация пользователя по токену
 pub async fn validate_token(
     app_state: Arc<AppState>,
     auth_token: &str,
 ) -> Result<User, (StatusCode, Json<ErrorResponse>)> {
+    println!("1");
     let claims = decode::<TokenClaims>(
         auth_token,
         &DecodingKey::from_secret(JWT_SECRET.as_ref()),
@@ -97,6 +101,8 @@ pub async fn validate_token(
         (StatusCode::UNAUTHORIZED, Json(json_error))
     })?
     .claims;
+    println!("2");
+
     let user_id = Uuid::parse_str(&claims.sub).map_err(|_| {
         let json_error = ErrorResponse {
             status: "fail",
@@ -104,7 +110,9 @@ pub async fn validate_token(
         };
         (StatusCode::UNAUTHORIZED, Json(json_error))
     })?;
-    let user = match sqlx::query("SELECT * FROM users WHERE id = $1")
+    println!("3");
+
+    let user = match sqlx::query(r#"SELECT * FROM "User" WHERE id = $1"#)
         .bind(user_id)
         .map(|row: PgRow| User::from(row))
         .fetch_one(&app_state.db)
@@ -113,6 +121,8 @@ pub async fn validate_token(
         Ok(data) => Ok(data),
         Err(err) => Err(err.to_string()),
     };
+    println!("4");
+
     let _user = user.map_err(|err| {
         let json_error = ErrorResponse {
             status: "fail",
@@ -120,5 +130,7 @@ pub async fn validate_token(
         };
         (StatusCode::UNAUTHORIZED, Json(json_error))
     })?;
+    println!("5");
+    println!("{:?}", _user);
     Ok(_user)
 }

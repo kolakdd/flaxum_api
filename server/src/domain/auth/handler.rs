@@ -1,5 +1,6 @@
+use crate::utils::jwt;
 use crate::{
-    domain::user::model::{CreateUserOut, ExistsOut, UserRole, User},
+    domain::user::model::{CreateUserOut, ExistsOut, User, UserRole},
     route::AppState,
     scalar::Id,
     utils::crypto,
@@ -8,7 +9,6 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
-use crate::utils::jwt;
 use validator::Validate;
 
 /// Body для .../user/register
@@ -91,7 +91,6 @@ pub struct LoginDto {
     #[validate(email)]
     pub email: String,
     #[validate(length(min = 6, max = 128))]
-
     pub password: String,
 }
 
@@ -106,22 +105,18 @@ pub async fn access_token(
 
     let q = r#"SELECT * FROM "User" WHERE email = $1"#;
     let res = sqlx::query_as::<_, User>(q)
-        .bind(body.email.to_string()).fetch_one(&state.db).await;
+        .bind(body.email.to_string())
+        .fetch_one(&state.db)
+        .await;
     match res {
-        Ok(user) => {
-            match crypto::verify(body.password.to_string(), user.hash_password).await {
-                Ok(true) => Ok((
-                    Json(
-                        json!({ "status": "success", "token": jwt::create_token(user.id).unwrap() }),
-                    ),
-                )),
-                Ok(false) => Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string())),
-                Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
-            }
-        }
-        Err(_) => Err((
-            StatusCode::UNAUTHORIZED, "Invalid password".to_string()
-        )),
+        Ok(user) => match crypto::verify(body.password.to_string(), user.hash_password).await {
+            Ok(true) => Ok((Json(
+                json!({ "status": "success", "token": jwt::create_token(user.id).unwrap() }),
+            ),)),
+            Ok(false) => Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string())),
+            Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+        },
+        Err(_) => Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string())),
     }
 }
 
