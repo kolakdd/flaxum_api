@@ -223,7 +223,7 @@ pub async fn download_file(
     Query(query): Query<DownloadFileDto>,
 ) -> impl IntoResponse {
     let current_user = USER.with(|u| u.clone());
-    println!("1");
+    
     let q = r#"
     SELECT id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated FROM "Object"
     WHERE id = $1 "#;
@@ -231,25 +231,21 @@ pub async fn download_file(
         .bind(query.file_id)
         .fetch_one(&state.db)
         .await;
-    println!("2");
 
     match res {
         Ok(object) => {
-            println!("3");
-
             let expires_in: u64 = 900; // 15 min
             let expires_in = Duration::from_secs(expires_in);
             let presigned_request = state
                 .s3
                 .get_object()
-                .bucket("objects")
+                .bucket("objects").response_content_disposition(format!("attachment; filename=\"{}\"", object.name))
                 .key(format!("{}/{}", object.owner_id, object.id))
                 .presigned(PresigningConfig::expires_in(expires_in).unwrap())
                 .await
                 .unwrap();
 
             let valid_until = chrono::offset::Local::now() + expires_in;
-            println!("6");
 
             Ok((
                 StatusCode::CREATED,
@@ -259,8 +255,6 @@ pub async fn download_file(
             ))
         }
         Err(err) => {
-        println!("4");
-
             eprintln!("Database error: {err}");
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
