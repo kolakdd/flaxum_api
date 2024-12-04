@@ -1,3 +1,4 @@
+pub mod crud;
 use std::time::Duration;
 
 use sqlx::{self, postgres::PgPoolOptions, Executor, Pool, Postgres};

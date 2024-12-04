@@ -87,10 +87,13 @@ pub async fn app() -> Result<Router, Error> {
         .route(
             "/object",
             get(object::handler::get_info)
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
                 .with_state(app_state.clone())
                 .put(object::handler::update_info)
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
                 .with_state(app_state.clone())
                 .delete(object::handler::delete_object)
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
                 .with_state(app_state.clone()),
         )
         .route(

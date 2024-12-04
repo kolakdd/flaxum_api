@@ -1,5 +1,8 @@
 use crate::common::Pagination;
-use crate::domain::object::model::{Object, ObjectType, UserXObject};
+use crate::db::crud::commons::pagination::pagination_query_builder;
+use crate::db::crud::objects::{get_object, object_change_favorite, create_object};
+use crate::db::crud::userxobjects::create_uxo;
+use crate::domain::object::model::{Object, ObjectType, UxOAccess, ObjectCreateModel};
 use crate::domain::user::model::User;
 use crate::utils::jwt::USER;
 use crate::{route::AppState, scalar::Id};
@@ -28,11 +31,11 @@ pub struct GetOwnListDto {
     pub parent_id: Option<Uuid>,
 }
 
-fn get_own_list_query<'a>(
+fn get_own_list_query(
     current_user: User,
     body: GetOwnListDto,
     pagination: &Pagination,
-) -> QueryBuilder<'a, Postgres> {
+) -> QueryBuilder<Postgres> {
     let mut query = QueryBuilder::new(
         r#"SELECT *
         FROM "Object"
@@ -44,14 +47,7 @@ fn get_own_list_query<'a>(
         query.push("AND parent_id = ");
         query.push_bind(parent_id);
     };
-
-    query.push(" limit ");
-    query.push_bind(pagination.limit);
-
-    query.push(" offset ");
-    query.push_bind(pagination.offset);
-
-    query
+    pagination_query_builder(query, pagination)
 }
 
 /// Получение собственных объектов
@@ -71,11 +67,8 @@ pub async fn get_own_list(
 
     let res = q.build().fetch_all(&state.db).await;
 
-    let objects: Result<Vec<Object>, sqlx::Error> = res.map(|rows| {
-        rows.into_iter()
-            .map(Object::from) 
-            .collect()
-    });
+    let objects: Result<Vec<Object>, sqlx::Error> =
+        res.map(|rows| rows.into_iter().map(Object::from).collect());
 
     match objects {
         Ok(object_list) => Ok((
@@ -91,29 +84,15 @@ pub async fn get_own_list(
     }
 }
 
-
-
-
-fn get_trash_query<'a>(
-    current_user: User,
-    pagination: &Pagination,
-) -> QueryBuilder<'a, Postgres> {
+fn get_trash_query(current_user: User, pagination: &Pagination) -> QueryBuilder<Postgres> {
     let mut query = QueryBuilder::new(
         r#"SELECT *
         FROM "Object"
         where in_trash is true and owner_id = "#,
     );
     query.push_bind(current_user.id);
-
-    query.push(" limit ");
-    query.push_bind(pagination.limit);
-
-    query.push(" offset ");
-    query.push_bind(pagination.offset);
-
-    query
+    pagination_query_builder(query, pagination)
 }
-
 
 /// Получение корзины
 pub async fn get_trash_list(
@@ -127,11 +106,8 @@ pub async fn get_trash_list(
     let current_user = USER.with(|u| u.clone());
     let mut q = get_trash_query(current_user, &pagination);
     let res = q.build().fetch_all(&state.db).await;
-    let objects: Result<Vec<Object>, sqlx::Error> = res.map(|rows| {
-        rows.into_iter()
-            .map(Object::from)
-            .collect()
-    });
+    let objects: Result<Vec<Object>, sqlx::Error> =
+        res.map(|rows| rows.into_iter().map(Object::from).collect());
 
     match objects {
         Ok(object_list) => Ok((
@@ -147,12 +123,9 @@ pub async fn get_trash_list(
     }
 }
 
-
 pub async fn get_info() {}
 
 pub async fn update_info() {}
-
-pub async fn delete_object() {}
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct CreateFolderDto {
@@ -172,42 +145,33 @@ pub async fn create_folder(
 
     let mut tx = state.db.begin().await.unwrap();
 
-    let q = r#"INSERT INTO "Object" (id, parent_id, owner_id, creator_id, name, size, type) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated"#;
-    let new_obj = sqlx::query_as::<_, Object>(q)
-        .bind(Id::new_v4())
-        .bind(body.parent_id)
-        .bind(current_user.id)
-        .bind(current_user.id)
-        .bind(body.name)
-        .bind(0)
-        .bind(ObjectType::Dir)
-        .fetch_one(&mut *tx)
-        .await;
-    match new_obj {
+    let object_constructor = ObjectCreateModel{
+        id: Id::new_v4(),
+        parent_id: body.parent_id,
+        owner_id: current_user.id,
+        creator_id: current_user.id, 
+        name: body.name,
+        size: Some(0i64),
+        type_: ObjectType::Dir,
+        mimetype: None,
+    };
+    match create_object(object_constructor, &mut tx).await {
         Ok(object) => {
-            let q = r#"
-            INSERT INTO "UserXObject" 
-            (id, user_id, object_id, can_read, can_edit, can_delete) 
-            VALUES 
-            ($1, $2, $3, $4, $5, $6) 
-            RETURNING 
-            id, user_id, object_id, can_read, can_edit, can_delete, created_at, updated_at
-            "#;
-    
-            let uxo = sqlx::query_as::<_, UserXObject>(q)
-                .bind(Id::new_v4())
-                .bind(current_user.id)
-                .bind(object.id)
-                .bind(true)
-                .bind(true)
-                .bind(true)
-                .fetch_one(&mut *tx)
-                .await;
+            let uxo = create_uxo(
+                current_user.id,
+                object.id,
+                UxOAccess(true, true, true),
+                &mut tx,
+            )
+            .await;
             match uxo {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(e) => {
                     println!("{:?}", e);
-                    return Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal error".to_string()));
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Internal error".to_string(),
+                    ));
                 }
             }
             tx.commit().await.unwrap();
@@ -252,70 +216,45 @@ pub async fn upload_file(
 
         let mut tx = state.db.begin().await.unwrap();
 
-        let q = r#"
-        INSERT INTO "Object" 
-        (id, parent_id, owner_id, creator_id, name, size, type, mimetype) 
-        VALUES 
-        ($1, $2, $3, $4, $5, $6, $7, $8) 
-        RETURNING 
-        id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated
-        "#;
         
-        let new_file = sqlx::query_as::<_, Object>(q)
-            .bind(file_id)
-            .bind(query.parent_id)
-            .bind(current_user.id)
-            .bind(current_user.id)
-            .bind(file_name)
-            .bind(file_length as i64)
-            .bind(ObjectType::File)
-            .bind(mimetype)
-            .fetch_one(&mut *tx)
-            .await;
+        let object_constructor = ObjectCreateModel{
+            id: file_id,
+            parent_id: query.parent_id,
+            owner_id: current_user.id,
+            creator_id: current_user.id, 
+            name: file_name,
+            size: Some(file_length as i64),
+            type_: ObjectType::File,
+            mimetype: Some(mimetype),
+        };
 
-            let ans = match new_file {
-                Ok(object) => {
-                    let q = r#"
-                    INSERT INTO "UserXObject" 
-                    (id, user_id, object_id, can_read, can_edit, can_delete) 
-                    VALUES 
-                    ($1, $2, $3, $4, $5, $6) 
-                    RETURNING 
-                    id, user_id, object_id, can_read, can_edit, can_delete, created_at, updated_at
-                    "#;
-            
-                    let uxo = sqlx::query_as::<_, UserXObject>(q)
-                        .bind(Id::new_v4())
-                        .bind(current_user.id)
-                        .bind(object.id)
-                        .bind(true)
-                        .bind(true)
-                        .bind(true)
-                        .fetch_one(&mut *tx)
-                        .await;
-                    match uxo {
-                        Ok(_) => {},
-                        Err(e) => {
-                            println!("{:?}", e);
-                            return Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal error".to_string()));
-                        }
-                    }
-                    tx.commit().await.unwrap();
-                    Ok((
-                        StatusCode::CREATED,
-                        Json(json!({ "status": "success", "data": object})),
-                    ))
-                }
-                Err(e) => {
-                    println!("{:?}", e);
-                    return Err((StatusCode::BAD_REQUEST, "bad req".to_string()));
-                }
-            };
+
+        let ans = match create_object(object_constructor, &mut tx).await {
+            Ok(object) => {
+                let _ = create_uxo(
+                    current_user.id,
+                    object.id,
+                    UxOAccess(true, true, true),
+                    &mut tx,
+                )
+                .await
+                .unwrap();
+                tx.commit().await.unwrap();
+                Ok((
+                    StatusCode::OK,
+                    Json(json!({ "status": "success", "data": object})),
+                ))
+            }
+            Err(e) => {
+                println!("{:?}", e);
+                return Err((StatusCode::BAD_REQUEST, "bad req".to_string()));
+            }
+        };
 
         let mut file = fs::File::create(Path::new(file_path)).unwrap();
         let _ = file.write_all(&data);
 
-        return ans
+        return ans;
     }
     Err((
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -333,9 +272,11 @@ pub async fn download_file(
     Query(query): Query<DownloadFileDto>,
 ) -> impl IntoResponse {
     let current_user = USER.with(|u| u.clone());
-    
+
     let q = r#"
-    SELECT id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated FROM "Object"
+    SELECT id, parent_id, owner_id, creator_id, name, size, type AS "type_",
+     mimetype, created_at, updated_at, in_trash, eliminated 
+     FROM "Object"
     WHERE id = $1 "#;
     let res = sqlx::query_as::<_, Object>(q)
         .bind(query.file_id)
@@ -349,7 +290,8 @@ pub async fn download_file(
             let presigned_request = state
                 .s3
                 .get_object()
-                .bucket("objects").response_content_disposition(format!("attachment; filename=\"{}\"", object.name))
+                .bucket("objects")
+                .response_content_disposition(format!("attachment; filename=\"{}\"", object.name))
                 .key(format!("{}/{}", object.owner_id, object.id))
                 .presigned(PresigningConfig::expires_in(expires_in).unwrap())
                 .await
@@ -358,7 +300,7 @@ pub async fn download_file(
             let valid_until = chrono::offset::Local::now() + expires_in;
 
             Ok((
-                StatusCode::CREATED,
+                StatusCode::OK,
                 Json(
                     json!({ "status": "success", "data": presigned_request.uri(), "valid_until": valid_until }),
                 ),
@@ -371,5 +313,35 @@ pub async fn download_file(
                 "Failed to download file".to_string(),
             ))
         }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct DeleteObjectDto {
+    pub file_id: Id,
+    pub delete_mark: bool,
+    pub hard_delete: bool,
+}
+
+pub async fn delete_object(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Json(dto): axum::extract::Json<DeleteObjectDto>,
+) -> impl IntoResponse {
+    let current_user = USER.with(|u| u.clone());
+
+    let object_res: Result<Object, sqlx::Error> = object_change_favorite(dto.file_id, dto.delete_mark, &state.db).await;
+    // let object_res = get_object(dto.file_id, false, &state.db).await;
+
+    match object_res {
+        Ok(object) => Ok((
+            StatusCode::OK,
+            Json(json!({ "status": "success", "data": object})),
+        )),
+        Err(err) => {
+            match err {
+                sqlx::Error::RowNotFound => Err((StatusCode::NOT_FOUND, "Not found")),
+                _ =>Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal error"))} 
+            }
+            
     }
 }

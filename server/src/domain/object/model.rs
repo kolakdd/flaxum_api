@@ -29,6 +29,18 @@ pub struct Object {
     pub eliminated: bool,
 }
 
+pub struct ObjectCreateModel {
+    pub id: Id,
+    pub parent_id: Option<Uuid>,
+    pub owner_id: Id,
+    pub creator_id: Id,
+    pub name: String,
+    pub size: Option<i64>,
+    pub type_: ObjectType,
+    pub mimetype: Option<String>,
+}
+
+
 #[allow(clippy::too_many_arguments)]
 impl Object {
     pub fn new(
@@ -81,6 +93,8 @@ impl From<PgRow> for Object {
     }
 }
 
+/// UxOAccess (can_read, can_edit, can_delete);
+pub struct UxOAccess(pub bool, pub bool, pub bool);
 
 #[derive(Debug, FromRow, Deserialize, Serialize, Clone)]
 #[allow(non_snake_case)]
