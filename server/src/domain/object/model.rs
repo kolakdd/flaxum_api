@@ -80,3 +80,57 @@ impl From<PgRow> for Object {
         )
     }
 }
+
+
+#[derive(Debug, FromRow, Deserialize, Serialize, Clone)]
+#[allow(non_snake_case)]
+pub struct UserXObject {
+    pub id: Id,
+    pub user_id: Id,
+    pub object_id: Id,
+    pub can_read: bool,
+    pub can_edit: bool,
+    pub can_delete: bool,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: Option<chrono::NaiveDateTime>,
+}
+
+#[allow(clippy::too_many_arguments)]
+impl UserXObject {
+    pub fn new(
+        id: Id,
+        user_id: Id,
+        object_id: Id,
+        can_read: bool,
+        can_edit: bool,
+        can_delete: bool,
+        created_at: chrono::NaiveDateTime,
+        updated_at: Option<chrono::NaiveDateTime>,
+    ) -> UserXObject {
+        UserXObject {
+            id,
+            user_id,
+            object_id,
+            can_edit,
+            can_read,
+            can_delete,
+            created_at,
+            updated_at,
+        }
+    }
+}
+
+impl From<PgRow> for UserXObject {
+    fn from(value: PgRow) -> Self {
+        UserXObject::new(
+            value.get("id"),
+            value.get("user_id"),
+            value.get("object_id"),
+            value.get("can_read"),
+            value.get("can_edit"),
+            value.get("can_delete"),
+            value.get("created_at"),
+            value.get("mimeupdated_attype"),
+        )
+    }
+}

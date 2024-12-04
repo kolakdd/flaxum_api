@@ -1,5 +1,5 @@
 use crate::common::Pagination;
-use crate::domain::object::model::{Object, ObjectType};
+use crate::domain::object::model::{Object, ObjectType, UserXObject};
 use crate::domain::user::model::User;
 use crate::utils::jwt::USER;
 use crate::{route::AppState, scalar::Id};
@@ -170,10 +170,10 @@ pub async fn create_folder(
     }
     let current_user = USER.with(|u| u.clone());
 
-    // if body.parent_id.is_none() {}
+    let mut tx = state.db.begin().await.unwrap();
 
     let q = r#"INSERT INTO "Object" (id, parent_id, owner_id, creator_id, name, size, type) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated"#;
-    let res = sqlx::query_as::<_, Object>(q)
+    let new_obj = sqlx::query_as::<_, Object>(q)
         .bind(Id::new_v4())
         .bind(body.parent_id)
         .bind(current_user.id)
@@ -181,17 +181,44 @@ pub async fn create_folder(
         .bind(body.name)
         .bind(0)
         .bind(ObjectType::Dir)
-        .fetch_one(&state.db)
+        .fetch_one(&mut *tx)
         .await;
-
-    match res {
-        Ok(object) => Ok((
-            StatusCode::CREATED,
-            Json(json!({ "status": "success", "data": object})),
-        )),
+    match new_obj {
+        Ok(object) => {
+            let q = r#"
+            INSERT INTO "UserXObject" 
+            (id, user_id, object_id, can_read, can_edit, can_delete) 
+            VALUES 
+            ($1, $2, $3, $4, $5, $6) 
+            RETURNING 
+            id, user_id, object_id, can_read, can_edit, can_delete, created_at, updated_at
+            "#;
+    
+            let uxo = sqlx::query_as::<_, UserXObject>(q)
+                .bind(Id::new_v4())
+                .bind(current_user.id)
+                .bind(object.id)
+                .bind(true)
+                .bind(true)
+                .bind(true)
+                .fetch_one(&mut *tx)
+                .await;
+            match uxo {
+                Ok(_) => {},
+                Err(e) => {
+                    println!("{:?}", e);
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal error".to_string()));
+                }
+            }
+            tx.commit().await.unwrap();
+            Ok((
+                StatusCode::CREATED,
+                Json(json!({ "status": "success", "data": object})),
+            ))
+        }
         Err(e) => {
-            println!("{e}");
-            Err((StatusCode::NOT_FOUND, "Failed to create folder".to_string()))
+            println!("{:?}", e);
+            Err((StatusCode::BAD_REQUEST, "bad req".to_string()))
         }
     }
 }
@@ -210,13 +237,12 @@ pub async fn upload_file(
     let query = query.unwrap_or_default();
 
     while let Some(field) = multipart.next_field().await.unwrap() {
-        let field_name = field.name().unwrap().to_string(); // check "file"
+        let field_name = field.name().unwrap().to_string();
         if field_name != "file" {
             continue;
         }
         let file_name = field.file_name().unwrap().to_string();
-        let content_type = field.content_type().unwrap().to_string();
-        println!("{} {} {}", field_name, file_name, content_type);
+        let mimetype = field.content_type().unwrap().to_string();
 
         let data = field.bytes().await.unwrap();
         let file_length = data.len();
@@ -228,13 +254,14 @@ pub async fn upload_file(
 
         let q = r#"
         INSERT INTO "Object" 
-        (id, parent_id, owner_id, creator_id, name, size, type) 
+        (id, parent_id, owner_id, creator_id, name, size, type, mimetype) 
         VALUES 
-        ($1, $2, $3, $4, $5, $6, $7) 
+        ($1, $2, $3, $4, $5, $6, $7, $8) 
         RETURNING 
         id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated
         "#;
-        let res = sqlx::query_as::<_, Object>(q)
+        
+        let new_file = sqlx::query_as::<_, Object>(q)
             .bind(file_id)
             .bind(query.parent_id)
             .bind(current_user.id)
@@ -242,27 +269,53 @@ pub async fn upload_file(
             .bind(file_name)
             .bind(file_length as i64)
             .bind(ObjectType::File)
+            .bind(mimetype)
             .fetch_one(&mut *tx)
             .await;
 
+            let ans = match new_file {
+                Ok(object) => {
+                    let q = r#"
+                    INSERT INTO "UserXObject" 
+                    (id, user_id, object_id, can_read, can_edit, can_delete) 
+                    VALUES 
+                    ($1, $2, $3, $4, $5, $6) 
+                    RETURNING 
+                    id, user_id, object_id, can_read, can_edit, can_delete, created_at, updated_at
+                    "#;
+            
+                    let uxo = sqlx::query_as::<_, UserXObject>(q)
+                        .bind(Id::new_v4())
+                        .bind(current_user.id)
+                        .bind(object.id)
+                        .bind(true)
+                        .bind(true)
+                        .bind(true)
+                        .fetch_one(&mut *tx)
+                        .await;
+                    match uxo {
+                        Ok(_) => {},
+                        Err(e) => {
+                            println!("{:?}", e);
+                            return Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal error".to_string()));
+                        }
+                    }
+                    tx.commit().await.unwrap();
+                    Ok((
+                        StatusCode::CREATED,
+                        Json(json!({ "status": "success", "data": object})),
+                    ))
+                }
+                Err(e) => {
+                    println!("{:?}", e);
+                    return Err((StatusCode::BAD_REQUEST, "bad req".to_string()));
+                }
+            };
+
         let mut file = fs::File::create(Path::new(file_path)).unwrap();
-        let ans = file.write_all(&data);
-        println!("{:?}", ans);
+        let _ = file.write_all(&data);
 
-        tx.commit().await.unwrap();
-
-        match res {
-            Ok(object) => {
-                return Ok((
-                    StatusCode::CREATED,
-                    Json(json!({ "status": "success", "data": object})),
-                ));
-            }
-            Err(e) => {
-                println!("{:?}", e);
-                return Err((StatusCode::BAD_REQUEST, "bad req".to_string()));
-            }
-        };
+        return ans
     }
     Err((
         StatusCode::INTERNAL_SERVER_ERROR,
