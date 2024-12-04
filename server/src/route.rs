@@ -3,13 +3,13 @@ use crate::utils::jwt;
 use crate::{
     config::Config,
     db,
-    domain::{auth, object, user},
+    domain::{access, auth, object, user},
     Error,
 };
 use aws_sdk_s3 as s3;
 use axum::{
     middleware,
-    routing::{get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 use sqlx::{Pool, Postgres};
@@ -34,9 +34,14 @@ pub async fn app() -> Result<Router, Error> {
         s3: config.s3_client.clone(),
     });
 
-    // app
     let app = Router::new()
-        // auth
+        // ██╗░░░██╗░██████╗███████╗██████╗░
+        // ██║░░░██║██╔════╝██╔════╝██╔══██╗
+        // ██║░░░██║╚█████╗░█████╗░░██████╔╝
+        // ██║░░░██║░╚═══██╗██╔══╝░░██╔══██╗
+        // ╚██████╔╝██████╔╝███████╗██║░░██║
+        // ░╚═════╝░╚═════╝░╚══════╝╚═╝░░╚═╝
+        // Роуты для взаимодействия с пользователями
         .route(
             "/user/list",
             get(user::handler::admin_get_users).with_state(app_state.clone()),
@@ -50,7 +55,13 @@ pub async fn app() -> Result<Router, Error> {
                 .delete(user::handler::delete_user)
                 .with_state(app_state.clone()),
         )
-        // auth
+        // ░█████╗░██╗░░░██╗████████╗██╗░░██╗
+        // ██╔══██╗██║░░░██║╚══██╔══╝██║░░██║
+        // ███████║██║░░░██║░░░██║░░░███████║
+        // ██╔══██║██║░░░██║░░░██║░░░██╔══██║
+        // ██║░░██║╚██████╔╝░░░██║░░░██║░░██║
+        // ╚═╝░░╚═╝░╚═════╝░░░░╚═╝░░░╚═╝░░╚═╝
+        // Роуты для авторизации
         .route(
             "/user/register",
             post(auth::handler::register_user).with_state(app_state.clone()),
@@ -63,9 +74,41 @@ pub async fn app() -> Result<Router, Error> {
             "/refresh_token",
             get(auth::handler::refresh_token).with_state(app_state.clone()),
         )
-        //
+        // ░█████╗░░█████╗░░█████╗░███████╗░██████╗░██████╗
+        // ██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔════╝██╔════╝
+        // ███████║██║░░╚═╝██║░░╚═╝█████╗░░╚█████╗░╚█████╗░
+        // ██╔══██║██║░░██╗██║░░██╗██╔══╝░░░╚═══██╗░╚═══██╗
+        // ██║░░██║╚█████╔╝╚█████╔╝███████╗██████╔╝██████╔╝
+        // ╚═╝░░╚═╝░╚════╝░░╚════╝░╚══════╝╚═════╝░╚═════╝░
+        // Роуты для контроля доступа над объектами
+        .route(
+            "/access/list/:object_id",
+            get(access::handler::list_access)
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
+                .with_state(app_state.clone()),
+        )
+        .route(
+            "/access/give/:object_id",
+            post(access::handler::post_give_access)
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
+                .with_state(app_state.clone()),
+        )
+        .route(
+            "/access/close/:object_id",
+            delete(access::handler::close_access)
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
+                .with_state(app_state.clone()),
+        )
+        // ░█████╗░██████╗░░░░░░██╗███████╗░█████╗░████████╗
+        // ██╔══██╗██╔══██╗░░░░░██║██╔════╝██╔══██╗╚══██╔══╝
+        // ██║░░██║██████╦╝░░░░░██║█████╗░░██║░░╚═╝░░░██║░░░
+        // ██║░░██║██╔══██╗██╗░░██║██╔══╝░░██║░░██╗░░░██║░░░
+        // ╚█████╔╝██████╦╝╚█████╔╝███████╗╚█████╔╝░░░██║░░░
+        // ░╚════╝░╚═════╝░░╚════╝░╚══════╝░╚════╝░░░░╚═╝░░░
+        // Роуты для взаимодействия с хранилищем и объектами
         .route(
             "/folder",
+            // Создать папку
             post(object::handler::create_folder)
                 .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
                 .with_state(app_state.clone()),
@@ -83,7 +126,6 @@ pub async fn app() -> Result<Router, Error> {
                 .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
                 .with_state(app_state.clone()),
         )
-        // objects
         .route(
             "/object",
             get(object::handler::get_info)
@@ -97,7 +139,7 @@ pub async fn app() -> Result<Router, Error> {
                 .with_state(app_state.clone()),
         )
         .route(
-            "/object/list",
+            "/object/own/list",
             get(object::handler::get_own_list)
                 .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
                 .with_state(app_state.clone()),
@@ -105,6 +147,12 @@ pub async fn app() -> Result<Router, Error> {
         .route(
             "/object/trash/list",
             get(object::handler::get_trash_list)
+                .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
+                .with_state(app_state.clone()),
+        )
+        .route(
+            "/object/shared/list",
+            get(object::handler::get_own_list)
                 .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
                 .with_state(app_state.clone()),
         )

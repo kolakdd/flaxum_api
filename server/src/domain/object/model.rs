@@ -95,10 +95,9 @@ impl From<PgRow> for Object {
 /// UxOAccess (can_read, can_edit, can_delete);
 pub struct UxOAccess(pub bool, pub bool, pub bool);
 
-#[derive(Debug, FromRow, Deserialize, Serialize, Clone)]
+#[derive(Debug, sqlx::Type, FromRow, Serialize, Deserialize, Clone)]
 #[allow(non_snake_case)]
 pub struct UserXObject {
-    pub id: Id,
     pub user_id: Id,
     pub object_id: Id,
     pub can_read: bool,
@@ -111,7 +110,6 @@ pub struct UserXObject {
 #[allow(clippy::too_many_arguments)]
 impl UserXObject {
     pub fn new(
-        id: Id,
         user_id: Id,
         object_id: Id,
         can_read: bool,
@@ -121,7 +119,6 @@ impl UserXObject {
         updated_at: Option<chrono::NaiveDateTime>,
     ) -> UserXObject {
         UserXObject {
-            id,
             user_id,
             object_id,
             can_edit,
@@ -136,14 +133,62 @@ impl UserXObject {
 impl From<PgRow> for UserXObject {
     fn from(value: PgRow) -> Self {
         UserXObject::new(
-            value.get("id"),
             value.get("user_id"),
             value.get("object_id"),
             value.get("can_read"),
             value.get("can_edit"),
             value.get("can_delete"),
             value.get("created_at"),
-            value.get("mimeupdated_attype"),
+            value.get("updated_at"),
+        )
+    }
+}
+
+#[derive(Debug, sqlx::Type, FromRow, Serialize, Deserialize, Clone)]
+pub struct PublicUserObject {
+    owner_id: Id,
+    owner_email: String,
+}
+
+impl PublicUserObject {
+    pub fn new(owner_id: Id, owner_email: String) -> PublicUserObject {
+        PublicUserObject {
+            owner_id,
+            owner_email,
+        }
+    }
+}
+
+/// Для передачи с дополнительными данными в .../access/...
+#[derive(sqlx::Type, Debug, FromRow, Serialize, Deserialize, Clone)]
+#[allow(non_snake_case)]
+pub struct PublicUserXObject {
+    #[sqlx(flatten)]
+    pub uxo: UserXObject,
+    #[sqlx(flatten)]
+    pub owner_user: PublicUserObject,
+}
+
+#[allow(clippy::too_many_arguments)]
+impl PublicUserXObject {
+    pub fn new(uxo: UserXObject, owner_user: PublicUserObject) -> PublicUserXObject {
+        PublicUserXObject { uxo, owner_user }
+    }
+}
+
+impl From<PgRow> for PublicUserXObject {
+    fn from(value: PgRow) -> Self {
+        PublicUserXObject::new(
+            UserXObject::new(
+                value.get("user_id"),
+                value.get("object_id"),
+                value.get("can_read"),
+                value.get("can_edit"),
+                value.get("can_delete"),
+                value.get("created_at"),
+                value.get("updated_at"),
+            ),
+            PublicUserObject::new(value.get("owner_id"), value.get("owner_email")),
         )
     }
 }

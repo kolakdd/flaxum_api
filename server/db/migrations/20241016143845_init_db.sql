@@ -75,14 +75,14 @@ CREATE TABLE "LastSeen" (
 
 -- Создание таблицы UserXObject
 CREATE TABLE "UserXObject" (
-    id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES "User"(id),
     object_id UUID NOT NULL REFERENCES "Object"(id) ON DELETE CASCADE,
     can_read BOOLEAN DEFAULT TRUE,
     can_edit BOOLEAN DEFAULT FALSE,
     can_delete BOOLEAN DEFAULT FALSE,
     created_at timestamp without time zone NOT NULL DEFAULT now(),
-    updated_at timestamp without time zone
+    updated_at timestamp without time zone,
+    PRIMARY KEY (user_id, object_id)
 );
 
 -- Создание таблицы FavoriteObject
