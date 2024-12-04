@@ -73,7 +73,7 @@ pub async fn get_own_list(
 
     let objects: Result<Vec<Object>, sqlx::Error> = res.map(|rows| {
         rows.into_iter()
-            .map(Object::from) // Используем реализацию From<PgRow> for Object
+            .map(Object::from) 
             .collect()
     });
 
@@ -90,6 +90,63 @@ pub async fn get_own_list(
         }
     }
 }
+
+
+
+
+fn get_trash_query<'a>(
+    current_user: User,
+    pagination: &Pagination,
+) -> QueryBuilder<'a, Postgres> {
+    let mut query = QueryBuilder::new(
+        r#"SELECT *
+        FROM "Object"
+        where in_trash is true and owner_id = "#,
+    );
+    query.push_bind(current_user.id);
+
+    query.push(" limit ");
+    query.push_bind(pagination.limit);
+
+    query.push(" offset ");
+    query.push_bind(pagination.offset);
+
+    query
+}
+
+
+/// Получение корзины
+pub async fn get_trash_list(
+    State(state): State<Arc<AppState>>,
+    OptionalQuery(pagination): OptionalQuery<Pagination>,
+) -> impl IntoResponse {
+    let pagination = pagination.unwrap_or_default();
+    if let Err(e) = pagination.validate() {
+        return Err((StatusCode::BAD_REQUEST, e.to_string()));
+    }
+    let current_user = USER.with(|u| u.clone());
+    let mut q = get_trash_query(current_user, &pagination);
+    let res = q.build().fetch_all(&state.db).await;
+    let objects: Result<Vec<Object>, sqlx::Error> = res.map(|rows| {
+        rows.into_iter()
+            .map(Object::from)
+            .collect()
+    });
+
+    match objects {
+        Ok(object_list) => Ok((
+            StatusCode::OK,
+            Json(
+                json!({ "status": "success", "data": object_list, "limit": pagination.limit , "offset": pagination.offset }),
+            ),
+        )),
+        Err(e) => {
+            println!("{e}");
+            Err((StatusCode::NOT_FOUND, "Fail get list".to_string()))
+        }
+    }
+}
+
 
 pub async fn get_info() {}
 
