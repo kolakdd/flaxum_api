@@ -1,8 +1,8 @@
 use crate::common::Pagination;
 use crate::db::crud::commons::pagination::pagination_query_builder;
-use crate::db::crud::objects::{get_object, object_change_favorite, create_object};
+use crate::db::crud::objects::{create_object, get_object, object_change_delete};
 use crate::db::crud::userxobjects::create_uxo;
-use crate::domain::object::model::{Object, ObjectType, UxOAccess, ObjectCreateModel};
+use crate::domain::object::model::{Object, ObjectCreateModel, ObjectType, UxOAccess};
 use crate::domain::user::model::User;
 use crate::utils::jwt::USER;
 use crate::{route::AppState, scalar::Id};
@@ -39,7 +39,7 @@ fn get_own_list_query(
     let mut query = QueryBuilder::new(
         r#"SELECT *
         FROM "Object"
-        where owner_id = "#,
+        where eliminated is false and owner_id = "#,
     );
     query.push_bind(current_user.id);
 
@@ -88,7 +88,7 @@ fn get_trash_query(current_user: User, pagination: &Pagination) -> QueryBuilder<
     let mut query = QueryBuilder::new(
         r#"SELECT *
         FROM "Object"
-        where in_trash is true and owner_id = "#,
+        where eleminated is false and in_trash is true and owner_id = "#,
     );
     query.push_bind(current_user.id);
     pagination_query_builder(query, pagination)
@@ -145,11 +145,11 @@ pub async fn create_folder(
 
     let mut tx = state.db.begin().await.unwrap();
 
-    let object_constructor = ObjectCreateModel{
+    let object_constructor = ObjectCreateModel {
         id: Id::new_v4(),
         parent_id: body.parent_id,
         owner_id: current_user.id,
-        creator_id: current_user.id, 
+        creator_id: current_user.id,
         name: body.name,
         size: Some(0i64),
         type_: ObjectType::Dir,
@@ -216,18 +216,16 @@ pub async fn upload_file(
 
         let mut tx = state.db.begin().await.unwrap();
 
-        
-        let object_constructor = ObjectCreateModel{
+        let object_constructor = ObjectCreateModel {
             id: file_id,
             parent_id: query.parent_id,
             owner_id: current_user.id,
-            creator_id: current_user.id, 
+            creator_id: current_user.id,
             name: file_name,
             size: Some(file_length as i64),
             type_: ObjectType::File,
             mimetype: Some(mimetype),
         };
-
 
         let ans = match create_object(object_constructor, &mut tx).await {
             Ok(object) => {
@@ -277,7 +275,7 @@ pub async fn download_file(
     SELECT id, parent_id, owner_id, creator_id, name, size, type AS "type_",
      mimetype, created_at, updated_at, in_trash, eliminated 
      FROM "Object"
-    WHERE id = $1 "#;
+    WHERE eliminated is false and id = $1 "#;
     let res = sqlx::query_as::<_, Object>(q)
         .bind(query.file_id)
         .fetch_one(&state.db)
@@ -329,7 +327,7 @@ pub async fn delete_object(
 ) -> impl IntoResponse {
     let current_user = USER.with(|u| u.clone());
 
-    let object_res: Result<Object, sqlx::Error> = object_change_favorite(dto.file_id, dto.delete_mark, &state.db).await;
+    let object_res: Result<Object, sqlx::Error> = object_change_delete(dto, &state.db).await;
     // let object_res = get_object(dto.file_id, false, &state.db).await;
 
     match object_res {
@@ -337,11 +335,9 @@ pub async fn delete_object(
             StatusCode::OK,
             Json(json!({ "status": "success", "data": object})),
         )),
-        Err(err) => {
-            match err {
-                sqlx::Error::RowNotFound => Err((StatusCode::NOT_FOUND, "Not found")),
-                _ =>Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal error"))} 
-            }
-            
+        Err(err) => match err {
+            sqlx::Error::RowNotFound => Err((StatusCode::NOT_FOUND, "Not found")),
+            _ => Err((StatusCode::INTERNAL_SERVER_ERROR, "Internal error")),
+        },
     }
 }

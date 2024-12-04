@@ -40,7 +40,6 @@ pub struct ObjectCreateModel {
     pub mimetype: Option<String>,
 }
 
-
 #[allow(clippy::too_many_arguments)]
 impl Object {
     pub fn new(

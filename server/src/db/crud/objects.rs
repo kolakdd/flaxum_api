@@ -1,10 +1,10 @@
+use crate::domain::object::handler::DeleteObjectDto;
 use crate::domain::object::model::{Object, ObjectCreateModel};
 use crate::scalar::Id;
 use chrono::Utc;
+use http::StatusCode;
 use sqlx::Error;
 use sqlx::{Pool, Postgres, Transaction};
-use http::StatusCode;
-
 
 /// Create Object row.
 pub async fn create_object(
@@ -43,7 +43,6 @@ pub async fn create_object(
     }
 }
 
-
 // todo: add geter with check access
 pub async fn get_object(
     file_id: Id,
@@ -54,7 +53,7 @@ pub async fn get_object(
     SELECT id, parent_id, owner_id, creator_id, name, size, type AS "type_",
      mimetype, created_at, updated_at, in_trash, eliminated 
      FROM "Object"
-    WHERE id = $1 and is_deleted is $2"#;
+    WHERE id = $1 and is_deleted is $2 where eliminated is false"#;
 
     sqlx::query_as::<_, Object>(q)
         .bind(file_id)
@@ -63,27 +62,38 @@ pub async fn get_object(
         .await
 }
 
-/// Change object's favorite flag
-pub async fn object_change_favorite(
-    file_id: Id,
-    delete_mark: bool,
+/// Change object's delete flag
+pub async fn object_change_delete(
+    dto: DeleteObjectDto,
     db_pool: &Pool<Postgres>,
 ) -> Result<Object, Error> {
-    // let date = if delete_mark {
-    //     Some(Utc::now().naive_utc())
-    // } else {None};
-
-    let q = r#"
+    if dto.hard_delete == false {
+        let q = r#"
         UPDATE "Object" SET in_trash = $1, updated_at = $2  
         WHERE id = $3
         RETURNING id, parent_id, owner_id, creator_id, name, size, type AS "type_", 
         mimetype, created_at, updated_at, in_trash, eliminated 
       "#;
 
-    sqlx::query_as::<_, Object>(q)
-        .bind(delete_mark)
-        .bind(Utc::now().naive_utc())
-        .bind(file_id)
-        .fetch_one(db_pool)
-        .await
+        sqlx::query_as::<_, Object>(q)
+            .bind(dto.delete_mark)
+            .bind(Utc::now().naive_utc())
+            .bind(dto.file_id)
+            .fetch_one(db_pool)
+            .await
+    } else {
+        let q = r#"
+        UPDATE "Object" SET eliminated = $1, updated_at = $2  
+        WHERE id = $3
+        RETURNING id, parent_id, owner_id, creator_id, name, size, type AS "type_", 
+        mimetype, created_at, updated_at, in_trash, eliminated 
+      "#;
+
+        sqlx::query_as::<_, Object>(q)
+            .bind(dto.hard_delete)
+            .bind(Utc::now().naive_utc())
+            .bind(dto.file_id)
+            .fetch_one(db_pool)
+            .await
+    }
 }
