@@ -9,7 +9,7 @@ use crate::{
 use aws_sdk_s3 as s3;
 use axum::{
     middleware,
-    routing::{delete, get, post, put},
+    routing::{delete, get, post},
     Router,
 };
 use sqlx::{Pool, Postgres};

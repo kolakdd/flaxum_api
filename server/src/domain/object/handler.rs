@@ -1,6 +1,6 @@
 use crate::common::Pagination;
 use crate::db::crud::commons::pagination::pagination_query_builder;
-use crate::db::crud::objects::{create_object, get_object, object_change_delete};
+use crate::db::crud::objects::{create_object, object_change_delete};
 use crate::db::crud::userxobjects::create_uxo;
 use crate::domain::object::model::{Object, ObjectCreateModel, ObjectType, UxOAccess};
 use crate::domain::user::model::User;
@@ -269,7 +269,7 @@ pub async fn download_file(
     State(state): State<Arc<AppState>>,
     Query(query): Query<DownloadFileDto>,
 ) -> impl IntoResponse {
-    let current_user = USER.with(|u| u.clone());
+    let _ = USER.with(|u| u.clone());
 
     let q = r#"
     SELECT id, parent_id, owner_id, creator_id, name, size, type AS "type_",
@@ -325,7 +325,7 @@ pub async fn delete_object(
     State(state): State<Arc<AppState>>,
     axum::extract::Json(dto): axum::extract::Json<DeleteObjectDto>,
 ) -> impl IntoResponse {
-    let current_user = USER.with(|u| u.clone());
+    let _ = USER.with(|u| u.clone());
 
     let object_res: Result<Object, sqlx::Error> = object_change_delete(dto, &state.db).await;
     // let object_res = get_object(dto.file_id, false, &state.db).await;

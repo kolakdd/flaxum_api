@@ -67,7 +67,7 @@ pub async fn object_change_delete(
     dto: DeleteObjectDto,
     db_pool: &Pool<Postgres>,
 ) -> Result<Object, Error> {
-    if dto.hard_delete == false {
+    if !dto.hard_delete {
         let q = r#"
         UPDATE "Object" SET in_trash = $1, updated_at = $2  
         WHERE id = $3
