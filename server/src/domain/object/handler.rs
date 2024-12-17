@@ -84,6 +84,72 @@ pub async fn get_own_list(
     }
 }
 
+
+fn get_shared_list_query(
+    current_user: User,
+    body: GetSharedListDto,
+    pagination: &Pagination,
+) -> QueryBuilder<Postgres> {
+    let mut query = QueryBuilder::new(
+        r#"
+        SELECT * FROM "Object" 
+        JOIN "UserXObject" ON "Object".id = "UserXObject".object_id
+        where "Object".eliminated is false 
+        and 
+        "Object".owner_id != "#);
+    query.push_bind(current_user.id);
+    query.push(r#"AND "UserXObject".user_id = "#);
+    query.push_bind(current_user.id);
+
+    if let Some(parent_id) = body.parent_id {
+        query.push(r#"AND "Object"parent_id = "#);
+        query.push_bind(parent_id);
+    };
+    pagination_query_builder(query, pagination)
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct GetSharedListDto {
+    /// None при получении из корневой папки.
+    /// Иначе из любой собственной папки
+    pub parent_id: Option<Uuid>,
+}
+
+
+/// Получение доступных объектов
+pub async fn get_shared_list(
+    State(state): State<Arc<AppState>>,
+    OptionalQuery(pagination): OptionalQuery<Pagination>,
+    payload: Option<Json<GetSharedListDto>>,
+) -> impl IntoResponse {
+    let pagination = pagination.unwrap_or_default();
+    if let Err(e) = pagination.validate() {
+        return Err((StatusCode::BAD_REQUEST, e.to_string()));
+    }
+    let body: GetSharedListDto = payload.unwrap_or_default().0;
+    let current_user = USER.with(|u| u.clone());
+
+    let mut q = get_shared_list_query(current_user, body, &pagination);
+
+    let res = q.build().fetch_all(&state.db).await;
+
+    let objects: Result<Vec<Object>, sqlx::Error> =
+        res.map(|rows| rows.into_iter().map(Object::from).collect());
+
+    match objects {
+        Ok(object_list) => Ok((
+            StatusCode::OK,
+            Json(
+                json!({ "status": "success", "data": object_list, "limit": pagination.limit , "offset": pagination.offset }),
+            ),
+        )),
+        Err(e) => {
+            println!("{e}");
+            Err((StatusCode::NOT_FOUND, "Fail get list".to_string()))
+        }
+    }
+}
+
 fn get_trash_query(current_user: User, pagination: &Pagination) -> QueryBuilder<Postgres> {
     let mut query = QueryBuilder::new(
         r#"SELECT *
