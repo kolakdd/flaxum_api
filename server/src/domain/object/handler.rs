@@ -88,7 +88,7 @@ fn get_trash_query(current_user: User, pagination: &Pagination) -> QueryBuilder<
     let mut query = QueryBuilder::new(
         r#"SELECT *
         FROM "Object"
-        where eleminated is false and in_trash is true and owner_id = "#,
+        where eliminated is false and in_trash is true and owner_id = "#,
     );
     query.push_bind(current_user.id);
     pagination_query_builder(query, pagination)
