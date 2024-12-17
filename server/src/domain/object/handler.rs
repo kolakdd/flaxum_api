@@ -98,11 +98,11 @@ fn get_shared_list_query(
         and 
         "Object".owner_id != "#);
     query.push_bind(current_user.id);
-    query.push(r#"AND "UserXObject".user_id = "#);
+    query.push(r#" AND "UserXObject".user_id = "#);
     query.push_bind(current_user.id);
 
     if let Some(parent_id) = body.parent_id {
-        query.push(r#"AND "Object"parent_id = "#);
+        query.push(r#" AND "Object"parent_id = "#);
         query.push_bind(parent_id);
     };
     pagination_query_builder(query, pagination)
