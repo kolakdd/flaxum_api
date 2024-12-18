@@ -44,7 +44,7 @@ fn get_own_list_query(
     query.push_bind(current_user.id);
 
     if let Some(parent_id) = body.parent_id {
-        query.push("AND parent_id = ");
+        query.push(" AND parent_id = ");
         query.push_bind(parent_id);
     };
     pagination_query_builder(query, pagination)
@@ -102,7 +102,7 @@ fn get_shared_list_query(
     query.push_bind(current_user.id);
 
     if let Some(parent_id) = body.parent_id {
-        query.push(r#" AND "Object"parent_id = "#);
+        query.push(r#" AND "Object".parent_id = "#);
         query.push_bind(parent_id);
     };
     pagination_query_builder(query, pagination)
