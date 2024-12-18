@@ -6,8 +6,17 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
+
+#[cfg(target_os = "linux")]
+static PATH_SEPO: &str = "/";
+
+#[cfg(target_os = "windows")]
+static PATH_SEPO: &str = "\\";
+
+
 fn parse_path(path: &str) -> String {
-    let uuids: Vec<&str> = path.split("\\").last().unwrap().split(".").collect();
+    let uuids: Vec<&str> = path.split(PATH_SEPO).last().unwrap().split(".").collect();
+
     let (user_uuid, file_uuid) = (uuids[0], uuids[1]);
     format!("{}/{}", user_uuid, file_uuid)
 }
@@ -26,12 +35,11 @@ pub async fn file_lisener_worker(config: Arc<Config>) -> Result<()> {
     watcher.watch(Path::new("./tmp"), RecursiveMode::NonRecursive)?;
 
     while let Some(event) = rx.recv().await {
-        if event.kind == notify::EventKind::Create(CreateKind::Any) {
+        if event.kind == notify::EventKind::Create(CreateKind::File) {
             let config = Arc::clone(&config);
             let path = event.paths[0].to_str().unwrap().to_string();
             tokio::spawn(async move {
                 let parsed_path = parse_path(&path);
-
                 let body = ByteStream::from_path(std::path::Path::new(&path)).await;
                 if let Err(e) = body {
                     println!("Error reading file: {:?}", e);
