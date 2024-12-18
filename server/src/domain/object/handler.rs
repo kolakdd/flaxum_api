@@ -39,7 +39,7 @@ fn get_own_list_query(
     let mut query = QueryBuilder::new(
         r#"SELECT *
         FROM "Object"
-        where eliminated is false and owner_id = "#,
+        where eliminated is false and in_trash is false and owner_id = "#,
     );
     query.push_bind(current_user.id);
 
@@ -94,7 +94,7 @@ fn get_shared_list_query(
         r#"
         SELECT * FROM "Object" 
         JOIN "UserXObject" ON "Object".id = "UserXObject".object_id
-        where "Object".eliminated is false 
+        where "Object".eliminated is false and "Object".in_trash is false 
         and 
         "Object".owner_id != "#);
     query.push_bind(current_user.id);
