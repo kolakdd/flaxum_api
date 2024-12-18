@@ -16,7 +16,7 @@ async fn main() -> anyhow::Result<()> {
         let _ = watcher::file_lisener_worker(worker_config).await;
     });
 
-    // logger::init(&config)?;
+    logger::init(&config)?;
     let app = app().await?;
     dbg!("Running on http://localhost:3000");
     let listener = TcpListener::bind("0.0.0.0:3000").await?;
