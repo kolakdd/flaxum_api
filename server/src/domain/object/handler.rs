@@ -95,15 +95,16 @@ fn get_shared_list_query(
         SELECT * FROM "Object" 
         JOIN "UserXObject" ON "Object".id = "UserXObject".object_id
         where "Object".eliminated is false and "Object".in_trash is false 
-        and 
-        "Object".owner_id != "#);
+        and "Object".owner_id != "#);
     query.push_bind(current_user.id);
-    query.push(r#" AND "UserXObject".user_id = "#);
-    query.push_bind(current_user.id);
+
 
     if let Some(parent_id) = body.parent_id {
         query.push(r#" AND "Object".parent_id = "#);
         query.push_bind(parent_id);
+    } else {
+        query.push(r#" AND "UserXObject".user_id = "#);
+        query.push_bind(current_user.id);
     };
     pagination_query_builder(query, pagination)
 }
