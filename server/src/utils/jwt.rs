@@ -1,6 +1,6 @@
 use crate::domain::user::model::User;
-use crate::route::AppState;
-use crate::{env::JWT_SECRET, error};
+use crate::error;
+use crate::state::AppState;
 use axum::extract::State;
 use axum::{
     extract::Request,
@@ -44,10 +44,10 @@ impl Claims {
     }
 }
 
-pub fn create_token(id: Uuid) -> Result<String, error::Error> {
+pub fn create_token(id: Uuid, secret: String) -> Result<String, error::Error> {
     let claims = Claims::new(id);
     let header = Header::default();
-    let key = EncodingKey::from_secret(JWT_SECRET.as_ref());
+    let key = EncodingKey::from_secret(secret.as_bytes());
     let token = jsonwebtoken::encode(&header, &claims, &key);
     Ok(token.unwrap())
 }
@@ -88,7 +88,7 @@ pub async fn validate_token(
 ) -> Result<User, (StatusCode, Json<ErrorResponse>)> {
     let claims = decode::<TokenClaims>(
         auth_token,
-        &DecodingKey::from_secret(JWT_SECRET.as_ref()),
+        &DecodingKey::from_secret(app_state.env.jwt_secret.as_bytes()),
         &Validation::default(),
     )
     .map_err(|_| {

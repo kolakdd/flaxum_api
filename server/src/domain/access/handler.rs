@@ -1,7 +1,8 @@
 use crate::db::crud::userxobjects::get_all_uxo;
 use crate::db::crud::userxobjects::give_access;
+use crate::scalar::Id;
+use crate::state::AppState;
 use crate::utils::jwt::USER;
-use crate::{route::AppState, scalar::Id};
 use axum::extract::Path;
 use axum::extract::State;
 use axum::response::IntoResponse;

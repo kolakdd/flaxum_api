@@ -5,10 +5,7 @@ use tracing_subscriber::{
     registry,
 };
 
-use crate::config::Config;
-
-pub fn init(config: &Config) -> Result<(), crate::Error> {
-    dbg!("config: {}", config);
+pub fn init() -> Result<(), crate::Error> {
     let log_level = filter::LevelFilter::DEBUG;
     let env_filter = filter::EnvFilter::new("")
         .add_directive(log_level.into())

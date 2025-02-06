@@ -4,22 +4,24 @@ use tokio::net::TcpListener;
 use tokio::task;
 
 use flaxum::utils::watcher;
-use flaxum::{config::Config, logger, route::app};
+use flaxum::{config::AppConfig, logger, routes::main_app::app};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let config = Arc::new(Config::load().await?);
+    logger::init()?;
+    // load config
+    let config = Arc::new(AppConfig::load().await?);
+    let workers_config = config.clone();
 
-    let worker_config = config.clone();
-    println!("spawn worker");
+    // spawn worker
     task::spawn(async move {
-        let _ = watcher::file_lisener_worker(worker_config).await;
+        let _ = watcher::file_lisener_worker(workers_config.clone()).await;
     });
 
-    logger::init(&config)?;
+    let listener = TcpListener::bind(config.env.api_address.to_string()).await?;
+    tracing::info!("Server start's on {}", &config.env.api_address.to_string());
+
     let app = app().await?;
-    dbg!("Running on http://localhost:3000");
-    let listener = TcpListener::bind("0.0.0.0:3000").await?;
     axum::serve(listener, app).await?;
     Ok(())
 }

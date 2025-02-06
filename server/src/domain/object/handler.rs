@@ -4,8 +4,9 @@ use crate::db::crud::objects::{create_object, object_change_delete};
 use crate::db::crud::userxobjects::create_uxo;
 use crate::domain::object::model::{Object, ObjectCreateModel, ObjectType, UxOAccess};
 use crate::domain::user::model::User;
+use crate::scalar::Id;
+use crate::state::AppState;
 use crate::utils::jwt::USER;
-use crate::{route::AppState, scalar::Id};
 use aws_sdk_s3::presigning::PresigningConfig;
 use axum::extract::{Multipart, State};
 use axum::response::IntoResponse;
@@ -46,6 +47,8 @@ fn get_own_list_query(
     if let Some(parent_id) = body.parent_id {
         query.push(" AND parent_id = ");
         query.push_bind(parent_id);
+    } else {
+        query.push(" AND parent_id is null ");
     };
     pagination_query_builder(query, pagination)
 }
@@ -84,7 +87,6 @@ pub async fn get_own_list(
     }
 }
 
-
 fn get_shared_list_query(
     current_user: User,
     body: GetSharedListDto,
@@ -95,9 +97,9 @@ fn get_shared_list_query(
         SELECT * FROM "Object" 
         JOIN "UserXObject" ON "Object".id = "UserXObject".object_id
         where "Object".eliminated is false and "Object".in_trash is false 
-        and "Object".owner_id != "#);
+        and "Object".owner_id != "#,
+    );
     query.push_bind(current_user.id);
-
 
     if let Some(parent_id) = body.parent_id {
         query.push(r#" AND "Object".parent_id = "#);
@@ -115,7 +117,6 @@ pub struct GetSharedListDto {
     /// Иначе из любой собственной папки
     pub parent_id: Option<Uuid>,
 }
-
 
 /// Получение доступных объектов
 pub async fn get_shared_list(

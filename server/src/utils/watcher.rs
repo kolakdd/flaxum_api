@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::AppConfig;
 use aws_sdk_s3::primitives::ByteStream;
 use notify::{event::CreateKind, Event, RecursiveMode, Result, Watcher};
 use std::fs;
@@ -6,13 +6,11 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-
 #[cfg(target_os = "linux")]
 static PATH_SEPO: &str = "/";
 
 #[cfg(target_os = "windows")]
 static PATH_SEPO: &str = "\\";
-
 
 fn parse_path(path: &str) -> String {
     let uuids: Vec<&str> = path.split(PATH_SEPO).last().unwrap().split(".").collect();
@@ -21,7 +19,7 @@ fn parse_path(path: &str) -> String {
     format!("{}/{}", user_uuid, file_uuid)
 }
 
-pub async fn file_lisener_worker(config: Arc<Config>) -> Result<()> {
+pub async fn file_lisener_worker(config: Arc<AppConfig>) -> Result<()> {
     if fs::metadata("tmp").is_err() {
         fs::create_dir("tmp").unwrap();
     }

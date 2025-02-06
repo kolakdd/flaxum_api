@@ -1,7 +1,7 @@
+use crate::state::AppState;
 use crate::utils::jwt;
 use crate::{
     domain::user::model::{CreateUserOut, ExistsOut, User, UserRole},
-    route::AppState,
     scalar::Id,
     utils::crypto,
 };
@@ -111,7 +111,7 @@ pub async fn access_token(
     match res {
         Ok(user) => match crypto::verify(body.password.to_string(), user.hash_password).await {
             Ok(true) => Ok((Json(
-                json!({ "status": "success", "token": jwt::create_token(user.id).unwrap() }),
+                json!({ "status": "success", "token": jwt::create_token(user.id, state.env.jwt_secret.to_string()).unwrap()}),
             ),)),
             Ok(false) => Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string())),
             Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),

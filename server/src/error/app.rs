@@ -28,7 +28,7 @@ impl std::convert::From<Error> for crate::Error {
 
 impl std::convert::From<sqlx::Error> for Error {
     fn from(_: sqlx::Error) -> Self {
-            Error::Internal
+        Error::Internal
     }
 }
 
