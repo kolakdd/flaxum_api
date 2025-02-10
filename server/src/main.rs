@@ -4,7 +4,7 @@ use tokio::net::TcpListener;
 use tokio::task;
 
 use flaxum::utils::watcher;
-use flaxum::{config::AppConfig, logger, routes::main_app::app};
+use flaxum::{config::AppConfig, domain::main_app::app, logger};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -21,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     let listener = TcpListener::bind(config.env.api_address.to_string()).await?;
     tracing::info!("Server start's on {}", &config.env.api_address.to_string());
 
-    let app = app().await?;
+    let app = app(config).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }

@@ -1,37 +1,8 @@
-
--- -- db init
--- CREATE TABLE IF NOT EXISTS users (
---     id UUID PRIMARY KEY,
-
---     email TEXT NOT NULL,
---     password TEXT NOT NULL,
-    
---     create_date timestamp with time zone default now(),
---     storage_size bigint NOT NULL default 0
---     );
-
--- CREATE TABLE IF NOT EXISTS objects (
---     id UUID PRIMARY KEY,
---     parent_id UUID NULL,
---     FOREIGN KEY (parent_id) REFERENCES objects(id),
-
---     name TEXT NOT NULL,
---     size bigint NOT NULL,
-
---     owner_id UUID NOT NULL,
---     FOREIGN KEY (owner_id) REFERENCES users(id),
-
---     create_date timestamp with time zone NOT NULL default now(),
---     update_date timestamp without time zone NOT NULL default now()
--- );
-
-
 -- Db init
 
 CREATE TYPE objectType AS ENUM ('dir', 'file');
 CREATE TYPE userRoleType AS ENUM ('superuser', 'admin', 'user');
 
--- Создание таблицы User
 CREATE TABLE "User" (
     id UUID PRIMARY KEY,
     name_1 VARCHAR(100) NOT NULL,
@@ -49,7 +20,6 @@ CREATE TABLE "User" (
     storage_size BIGINT default 0
 );
 
--- Создание таблицы Object
 CREATE TABLE "Object" (
     id UUID PRIMARY KEY,
     parent_id UUID REFERENCES "Object"(id),
@@ -65,7 +35,6 @@ CREATE TABLE "Object" (
     eliminated BOOLEAN DEFAULT FALSE
 );
 
--- Создание таблицы LastSeen
 CREATE TABLE "LastSeen" (
     user_id UUID NOT NULL REFERENCES "User"(id),
     object_id UUID NOT NULL REFERENCES "Object"(id) ON DELETE CASCADE,
@@ -73,7 +42,6 @@ CREATE TABLE "LastSeen" (
     PRIMARY KEY (user_id, object_id)
 );
 
--- Создание таблицы UserXObject
 CREATE TABLE "UserXObject" (
     user_id UUID NOT NULL REFERENCES "User"(id),
     object_id UUID NOT NULL REFERENCES "Object"(id) ON DELETE CASCADE,
@@ -85,7 +53,6 @@ CREATE TABLE "UserXObject" (
     PRIMARY KEY (user_id, object_id)
 );
 
--- Создание таблицы FavoriteObject
 CREATE TABLE "FavoriteObject" (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES "User"(id),
@@ -93,6 +60,5 @@ CREATE TABLE "FavoriteObject" (
     created_at timestamp without time zone NOT NULL DEFAULT now()
 );
 
--- Добавление ограничений для ссылок
 ALTER TABLE "Object"
     ADD CONSTRAINT fk_parent_id FOREIGN KEY (parent_id) REFERENCES "Object"(id) ON DELETE SET NULL;

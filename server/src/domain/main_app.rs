@@ -10,8 +10,7 @@ use super::object::route::ObjectRouter;
 use super::user::route::UserRouter;
 use super::uxo::route::UserXObjectRouter;
 
-pub async fn app() -> anyhow::Result<Router> {
-    let config = Arc::new(AppConfig::load().await?);
+pub async fn app(config: Arc<AppConfig>) -> anyhow::Result<Router> {
     let app_state = Arc::new(AppState::build(config.as_ref().clone()).await);
 
     let app = Router::new()
@@ -23,24 +22,3 @@ pub async fn app() -> anyhow::Result<Router> {
         .layer(TraceLayer::new_for_http());
     Ok(app)
 }
-
-// define some routes separately
-
-// let user_routes = Router::new()
-//     .route("/users", get(users_list))
-//     .route("/users/{id}", get(users_show));
-
-// let team_routes = Router::new()
-//     .route("/teams", get(teams_list));
-
-// // combine them into one
-// let app = Router::new()
-//     .merge(user_routes)
-//     .merge(team_routes);
-
-// could also do `user_routes.merge(team_routes)`
-
-// Our app now accepts
-// - GET /users
-// - GET /users/{id}
-// - GET /teams

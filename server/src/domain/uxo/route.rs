@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::domain::access;
+use crate::domain::uxo;
 use crate::state::AppState;
 use crate::utils::jwt;
 use axum::{
@@ -19,15 +19,15 @@ impl UserXObjectRouter {
         Router::new()
             .route(
                 "/list/:object_id",
-                get(access::handler::list_access).with_state(app_state.clone()),
+                get(uxo::handler::list_access).with_state(app_state.clone()),
             )
             .route(
                 "/give/:object_id",
-                post(access::handler::post_give_access).with_state(app_state.clone()),
+                post(uxo::handler::post_give_access).with_state(app_state.clone()),
             )
             .route(
                 "/close/:object_id",
-                delete(access::handler::close_access).with_state(app_state.clone()),
+                delete(uxo::handler::close_access).with_state(app_state.clone()),
             )
             .layer(middleware::from_fn_with_state(app_state.clone(), jwt::auth))
     }

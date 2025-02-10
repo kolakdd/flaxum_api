@@ -1,5 +1,5 @@
-use crate::domain::access::handler::GiveAccessDto;
 use crate::domain::object::model::{PublicUserXObject, UserXObject, UxOAccess};
+use crate::domain::uxo::handler::GiveAccessDto;
 use crate::scalar::Id;
 use http::StatusCode;
 use sqlx::{Postgres, Transaction};

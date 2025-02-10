@@ -11,7 +11,10 @@ pub fn init() -> Result<(), crate::Error> {
         .add_directive(log_level.into())
         .add_directive("sqlx::query=error".parse().unwrap())
         .add_directive("hyper=warn".parse().unwrap())
-        .add_directive("reqwest=warn".parse().unwrap());
+        .add_directive("reqwest=warn".parse().unwrap())
+        .add_directive("aws_sdk_s3=warn".parse().unwrap())
+        .add_directive("aws_smithy_runtime=warn".parse().unwrap())
+        .add_directive("aws_runtime=warn".parse().unwrap());
 
     let fmt_layer = layer()
         .with_target(true)

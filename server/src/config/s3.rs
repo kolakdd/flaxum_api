@@ -24,7 +24,7 @@ impl S3Client {
     }
 
     // Инициализация бакетов
-    async fn init_buckets(client: &Client, env_var: &EnvironmentVariables) -> anyhow::Result<()>{
+    async fn init_buckets(client: &Client, env_var: &EnvironmentVariables) -> anyhow::Result<()> {
         let region = client.config().region().unwrap();
         let constraint =
             aws_sdk_s3::types::BucketLocationConstraint::from(region.to_string().as_str());
@@ -32,8 +32,8 @@ impl S3Client {
             .location_constraint(constraint)
             .build();
 
-        tracing::info!("Start init buckets"); 
-        
+        tracing::info!("Start init buckets");
+
         // Создание бакета objects
         let created_bucket = client
             .create_bucket()
@@ -44,7 +44,7 @@ impl S3Client {
 
         match created_bucket {
             Ok(bucket) => tracing::info!("Finish with {:?}", bucket.location),
-            Err(err) => tracing::info!("Err create bucket, {:?}", err.into_source()),
+            Err(err) => tracing::warn!("Err create bucket, {:?}", err.into_source()),
         }
         Ok(())
     }
