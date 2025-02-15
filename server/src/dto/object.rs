@@ -16,15 +16,11 @@ pub struct CreateFolderDto {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct UploadFileDto {
     pub parent_id: Option<Id>,
 }
 
-impl Default for UploadFileDto {
-    fn default() -> Self {
-        Self { parent_id: None }
-    }
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct DownloadFileDto {

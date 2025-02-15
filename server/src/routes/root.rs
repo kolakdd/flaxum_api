@@ -1,14 +1,10 @@
 use std::sync::Arc;
 
 use axum::middleware;
-use axum::routing::{IntoMakeService, Route, RouterIntoService};
-use axum::Extension;
+use axum::routing::IntoMakeService;
 use axum::Router;
 
-use tower::make::IntoService;
 use tower::ServiceBuilder;
-use tower_http::cors::CorsLayer;
-use tower_http::trace::TraceLayer;
 
 use crate::config::AppConfig;
 use crate::middleware::auth as auth_middleware;

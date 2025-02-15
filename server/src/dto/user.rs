@@ -1,6 +1,4 @@
 use serde::{Deserialize, Serialize};
-use sqlx::Error as SqlxError;
-use sqlx::{postgres::PgRow, FromRow};
 
 use sqlx::Row;
 use validator::Validate;

@@ -37,14 +37,14 @@ pub async fn auth(
                     req.extensions_mut().insert(user);
                     Ok(next.run(req).await)
                 }
-                None => return Err(UserError::UserNotFound)?,
+                None => Err(UserError::UserNotFound)?,
             }
         }
         Err(err) => {
-            return match err.kind() {
+            match err.kind() {
                 ErrorKind::ExpiredSignature => Err(TokenError::TokenExpired)?,
                 _ => Err(TokenError::InvalidToken(token.parse().unwrap_or_default()))?,
-            };
+            }
         }
     }
 }

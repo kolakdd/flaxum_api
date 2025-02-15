@@ -23,10 +23,10 @@ pub struct ObjectsPaginated {
 impl ObjectsPaginated {
     pub fn build(items: Vec<Object>, limit: i64, offset: i64, total: i64) -> Self {
         Self {
-            items: items,
-            limit: limit,
-            offset: offset,
-            total: total,
+            items,
+            limit,
+            offset,
+            total,
         }
     }
 }

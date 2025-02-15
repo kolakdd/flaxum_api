@@ -21,7 +21,7 @@ pub trait TokenServiceTrait {
 
 impl TokenServiceTrait for TokenService {
     fn new(secret: String) -> Self {
-        Self { secret: secret }
+        Self { secret }
     }
     fn retrieve_token_claims(
         &self,

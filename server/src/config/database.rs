@@ -43,7 +43,7 @@ impl Database {
             .await
             .map_err(|err| {
                 tracing::error!("{}", err);
-                err.into()
+                err
             })
     }
 

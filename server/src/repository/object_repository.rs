@@ -64,12 +64,12 @@ impl ObjectRepositoryTrait for ObjectRepository {
          mimetype, created_at, updated_at, in_trash, eliminated 
          FROM "Object"
         WHERE eliminated is false and id = $1 "#;
-        let res = sqlx::query_as::<_, Object>(q)
+        
+
+        sqlx::query_as::<_, Object>(q)
             .bind(id)
             .fetch_one(self.db_conn.get_pool())
-            .await;
-
-        res
+            .await
     }
 
     async fn select_own_list(

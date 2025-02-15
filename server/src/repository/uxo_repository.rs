@@ -86,11 +86,11 @@ impl UxoRepositoryTrait for UxoRepository {
         JOIN "User" ON "UserXObject".user_id = "User".id
         WHERE object_id = $1;
         "#;
-        let res = sqlx::query_as::<_, PublicUserXObject>(q)
+        
+        sqlx::query_as::<_, PublicUserXObject>(q)
             .bind(obj_id)
             .fetch_all(self.db_conn.get_pool())
-            .await;
-        res
+            .await
     }
 
     async fn insert_access_by_email(

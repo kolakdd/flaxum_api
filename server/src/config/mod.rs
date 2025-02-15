@@ -23,7 +23,7 @@ impl AppConfig {
         let env = EnvironmentVariables::from_env()?;
         let db_pool = Database::init(&env)
             .await
-            .unwrap_or_else(|e| panic!("Database error {}", e.to_string()));
+            .unwrap_or_else(|e| panic!("Database error {}", e));
         let s3_client = S3Client::init(&env).await;
         Ok(Self {
             env,
