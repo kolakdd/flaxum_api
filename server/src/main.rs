@@ -1,14 +1,18 @@
 use std::sync::Arc;
 
+use flaxum::config::parameter;
+use flaxum::routes::root::app;
 use tokio::net::TcpListener;
 use tokio::task;
 
 use flaxum::utils::watcher;
-use flaxum::{config::AppConfig, domain::main_app::app, logger};
+use flaxum::{config::AppConfig, logger};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    parameter::init();
     logger::init()?;
+
     // load config
     let config = Arc::new(AppConfig::load().await?);
     let workers_config = config.clone();
@@ -19,9 +23,11 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let listener = TcpListener::bind(config.env.api_address.to_string()).await?;
+
+    let app = app(config.clone()).await;
+
     tracing::info!("Server start's on {}", &config.env.api_address.to_string());
 
-    let app = app(config).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }

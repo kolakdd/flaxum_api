@@ -9,6 +9,8 @@ pub struct S3Client {
     pub s3_client: Client,
 }
 
+pub trait S3ClientTrait {}
+
 impl S3Client {
     pub async fn init(env_var: &EnvironmentVariables) -> Client {
         let region_provider = RegionProviderChain::first_try(Region::new(AWS_REGION));
@@ -19,6 +21,7 @@ impl S3Client {
             .await;
 
         let client = Client::new(&shared_config);
+        println!("addres s3 = {:?}", shared_config.endpoint_url());
         let _ = Self::init_buckets(&client, env_var).await;
         client
     }

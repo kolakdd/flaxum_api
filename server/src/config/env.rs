@@ -20,6 +20,9 @@ pub struct EnvironmentVariables {
 impl EnvironmentVariables {
     pub fn from_env() -> anyhow::Result<Self> {
         dotenv::dotenv().ok();
+
+        // ---------------------- change to validator
+
         Ok(Self {
             // API
             api_address: match dotenv::var("API_ADDRESS") {

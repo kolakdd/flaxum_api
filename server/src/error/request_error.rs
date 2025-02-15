@@ -1,16 +1,15 @@
 use crate::response::api_response::ApiErrorResponse;
-use async_trait::async_trait;
-use axum::{body::HttpBody,http::Request, BoxError, Json};
-use axum::extract::{rejection::JsonRejection, FromRequest};
+use axum::extract::{rejection::JsonRejection, FromRequest, Request};
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use serde::de::DeserializeOwned;
 use thiserror::Error;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
 #[derive(Debug, Error)]
 pub enum RequestError {
     #[error(transparent)]
-    ValidationError(#[from] validator::ValidationErrors),
+    ValidationError(#[from] ValidationErrors),
     #[error(transparent)]
     JsonRejection(#[from] JsonRejection),
 }
@@ -18,18 +17,14 @@ pub enum RequestError {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ValidatedRequest<T>(pub T);
 
-#[async_trait]
-impl<T, S, B> FromRequest<S, B> for ValidatedRequest<T>
+impl<S, T> FromRequest<S> for ValidatedRequest<T>
 where
-    T: DeserializeOwned + Validate,
+    T: DeserializeOwned + Validate + 'static,
     S: Send + Sync,
-    B: HttpBody + Send + 'static,
-    B::Data: Send,
-    B::Error: Into<BoxError>,
 {
     type Rejection = RequestError;
 
-    async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         let Json(value) = Json::<T>::from_request(req, state).await?;
         value.validate()?;
         Ok(ValidatedRequest(value))

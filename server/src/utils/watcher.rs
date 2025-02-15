@@ -24,10 +24,10 @@ pub async fn file_lisener_worker(config: Arc<AppConfig>) -> Result<()> {
         fs::create_dir("tmp").unwrap();
     }
 
-    let (tx, mut rx) = mpsc::channel::<Event>(100); // Асинхронный канал с буфером на 100 событий
+    let (tx, mut rx) = mpsc::channel::<Event>(100);
     let mut watcher = notify::recommended_watcher(move |res| {
         if let Ok(event) = res {
-            let _ = tx.blocking_send(event); // Отправляем событие в канал
+            let _ = tx.blocking_send(event);
         }
     })?;
     watcher.watch(Path::new("./tmp"), RecursiveMode::NonRecursive)?;

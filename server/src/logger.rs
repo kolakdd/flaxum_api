@@ -5,7 +5,7 @@ use tracing_subscriber::{
     registry,
 };
 
-pub fn init() -> Result<(), crate::Error> {
+pub fn init() -> Result<(), crate::error::api_error::ApiError> {
     let log_level = filter::LevelFilter::DEBUG;
     let env_filter = filter::EnvFilter::new("")
         .add_directive(log_level.into())
