@@ -25,7 +25,6 @@ async fn main() -> anyhow::Result<()> {
     let listener = TcpListener::bind(config.env.api_address.to_string()).await?;
 
     let app = app(config.clone()).await;
-
     tracing::info!("Server start's on {}", &config.env.api_address.to_string());
 
     axum::serve(listener, app).await?;

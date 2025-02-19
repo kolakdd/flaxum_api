@@ -1,4 +1,5 @@
-use crate::scalar::Id;
+use crate::{config::env::EnvironmentVariables, scalar::Id, utils::crypto};
+use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
@@ -23,11 +24,33 @@ pub struct User {
     pub email: String,
     pub hash_password: String,
     pub role_type: UserRole,
-    pub created_at: chrono::NaiveDateTime,
-    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: Option<NaiveDateTime>,
     pub is_deleted: bool,
-    pub deleted_at: Option<chrono::NaiveDateTime>,
+    pub deleted_at: Option<NaiveDateTime>,
     pub is_blocked: bool,
-    pub blocked_at: Option<chrono::NaiveDateTime>,
+    pub blocked_at: Option<NaiveDateTime>,
     pub storage_size: i64,
+}
+
+
+impl User {
+    pub async fn build_superuser(env_var: &EnvironmentVariables) -> Self{
+        Self{
+            id: Id::new_v4(),
+            name_1: "Admin".to_string(),
+            name_2: None,
+            name_3: None,
+            email: env_var.flaxum_super_user_email.to_string(),
+            hash_password: crypto::hash(env_var.flaxum_super_user_password.to_string()).await.unwrap(),
+            role_type: UserRole::Superuser,
+            created_at: Utc::now().naive_utc(),
+            updated_at: None,
+            is_deleted: false,
+            deleted_at: None,
+            is_blocked: false,
+            blocked_at: None,
+            storage_size: 0,
+        }
+    }
 }

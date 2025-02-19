@@ -21,13 +21,13 @@ pub struct AppConfig {
 impl AppConfig {
     pub async fn load() -> anyhow::Result<Self> {
         let env = EnvironmentVariables::from_env()?;
-        let db_pool = Database::init(&env)
+        let db_conn = Database::init(&env)
             .await
             .unwrap_or_else(|e| panic!("Database error {}", e));
         let s3_client = S3Client::init(&env).await;
         Ok(Self {
             env,
-            db_conn: db_pool,
+            db_conn,
             s3_client,
         })
     }

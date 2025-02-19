@@ -7,7 +7,6 @@ use validator::Validate;
 pub struct UserLoginDto {
     #[validate(email(message = "Email is not valid"))]
     pub email: String,
-    #[validate(length(min = 6, max = 64))]
     pub password: String,
 }
 

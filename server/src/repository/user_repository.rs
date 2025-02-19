@@ -13,6 +13,7 @@ pub struct UserRepository {
 
 pub trait UserRepositoryTrait {
     fn new(db_conn: &Arc<Database>) -> Self;
+    async fn insert(&self, payload: User) -> Result<(), SqlxError>;
     async fn create_user(&self, payload: CreateUserDto) -> Result<CreateUserOut, SqlxError>;
     // async fn update_user;
     // async fn delete_user;
@@ -26,6 +27,23 @@ impl UserRepositoryTrait for UserRepository {
         Self {
             db_conn: Arc::clone(db_conn),
         }
+    }
+
+    async fn insert(&self, payload: User) -> Result<(), SqlxError> {
+        let q = r#"
+        INSERT INTO "User" (id, name_1, email, hash_password, role_type)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING email, created_at
+    "#;
+        let _ = sqlx::query_as::<_, CreateUserOut>(q)
+            .bind(payload.id)
+            .bind(payload.name_1)
+            .bind(payload.email)
+            .bind(payload.hash_password)
+            .bind(payload.role_type)
+            .fetch_one(self.db_conn.get_pool())
+            .await?;
+        Ok(())
     }
 
     async fn create_user(&self, payload: CreateUserDto) -> Result<CreateUserOut, SqlxError> {
