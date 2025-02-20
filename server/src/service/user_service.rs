@@ -1,11 +1,13 @@
 use crate::config::database::Database;
-use crate::dto::user::{CreateUserDto, CreateUserOut};
-use crate::entity::user::User;
+use crate::dto::user::{ChangePasswordDto, CreateUserDto, CreateUserOut, UpdateUserMeDto};
+use crate::entity::user::{PublicUser, User};
 use crate::error::api_error::ApiError;
 use crate::error::db_error::DbError;
 use crate::error::user_error::UserError;
 use crate::repository::user_repository::{UserRepository, UserRepositoryTrait};
+use crate::scalar::Id;
 use crate::utils::crypto;
+
 use sqlx::Error as SqlxError;
 use std::sync::Arc;
 
@@ -64,5 +66,14 @@ impl UserService {
         crypto::verify(password.to_string(), user.hash_password.to_string())
             .await
             .unwrap()
+    }
+
+    pub async fn update_user_me(&self, payload: UpdateUserMeDto, user_id: Id) -> Result<PublicUser, ApiError>{
+        Ok(self.user_repo.update_user_me(payload, user_id).await?)
+    }
+
+    pub async fn change_password(&self, payload: ChangePasswordDto, user_id: Id) -> Result<(), ApiError>{
+        let hash_password = crypto::hash(payload.new_password).await.unwrap();
+        Ok(self.user_repo.update_password(hash_password, user_id).await?)
     }
 }

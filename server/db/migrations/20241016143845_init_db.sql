@@ -20,6 +20,7 @@ CREATE TABLE "User" (
     storage_size BIGINT default 0
 );
 
+-- todo: add is_s3 flag
 CREATE TABLE "Object" (
     id UUID PRIMARY KEY,
     parent_id UUID REFERENCES "Object"(id),

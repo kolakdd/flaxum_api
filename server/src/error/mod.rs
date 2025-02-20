@@ -1,4 +1,5 @@
 pub(crate) mod api_error;
+pub(crate) mod backend_error;
 pub(crate) mod db_error;
 pub(crate) mod id_error;
 pub(crate) mod io_error;

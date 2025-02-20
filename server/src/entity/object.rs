@@ -32,7 +32,7 @@ impl ObjectsPaginated {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, sqlx::FromRow)]
-#[allow(non_snake_case)]
+#[serde(rename_all = "camelCase")]
 pub struct Object {
     pub id: Id,
     pub parent_id: Option<Uuid>,

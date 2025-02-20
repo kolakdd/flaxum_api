@@ -1,6 +1,9 @@
 use sqlx::{Error, Pool, Postgres};
 
-use crate::{entity::user::User, repository::user_repository::{UserRepository, UserRepositoryTrait}};
+use crate::{
+    entity::user::User,
+    repository::user_repository::{UserRepository, UserRepositoryTrait},
+};
 
 use super::env::EnvironmentVariables;
 use std::{sync::Arc, time::Duration};
@@ -26,7 +29,7 @@ impl DatabaseTrait for Database {
     /// Init database
     async fn init(env_var: &EnvironmentVariables) -> Result<Self, Error> {
         let pool = Self::connect(&env_var.database_url, env_var.database_pool_size).await?;
-        let database = Database { pool }; 
+        let database = Database { pool };
         let _ = Self::migrate(&database.pool).await;
         let _ = Self::init_superuser(&database, env_var).await;
 
@@ -67,16 +70,19 @@ impl Database {
         Ok(())
     }
 
-    async fn init_superuser(db: &Self, env_var: &EnvironmentVariables) -> Result<(), Error>{
+    async fn init_superuser(db: &Self, env_var: &EnvironmentVariables) -> Result<(), Error> {
         tracing::info!("Init Superuser...");
         let user_repo = UserRepository::new(&Arc::new(db.clone()));
-        let super_user = user_repo.select_by_email(env_var.flaxum_super_user_email.to_string()).await;
+        let super_user = user_repo
+            .select_by_email(env_var.flaxum_super_user_email.to_string())
+            .await;
         match super_user {
             None => {
                 let payload = User::build_superuser(env_var).await;
-                let _ = futures::executor::block_on(user_repo.insert(payload)).unwrap_or_else(|e| panic!("{e}"));
+                let _ = futures::executor::block_on(user_repo.insert(payload))
+                    .unwrap_or_else(|e| panic!("{e}"));
                 tracing::info!("Superuser initializated success!");
-            },
+            }
             Some(_) => {
                 tracing::warn!("Superuser already exist!");
             }

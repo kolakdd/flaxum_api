@@ -39,3 +39,18 @@ impl IntoResponse for ApiErrorResponse {
             .into_response()
     }
 }
+
+
+
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OkMessage {
+    pub msg: String,
+}
+
+impl Default for OkMessage {
+    fn default() -> Self {
+        Self{ msg: "ok".to_string()}        
+    }
+}

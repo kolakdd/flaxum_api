@@ -1,8 +1,8 @@
 use std::io;
 
 use crate::error::{
-    db_error::DbError, id_error::IdError, io_error::WriteReadError, s3_error::ApiS3Error,
-    token_error::TokenError, user_error::UserError,
+    backend_error::BackendError, db_error::DbError, id_error::IdError, io_error::WriteReadError,
+    s3_error::ApiS3Error, token_error::TokenError, user_error::UserError,
 };
 use aws_sdk_s3;
 use axum::{
@@ -29,6 +29,8 @@ pub enum ApiError {
     WriteReadError(#[from] WriteReadError),
     #[error(transparent)]
     ApiS3Error(#[from] ApiS3Error),
+    #[error(transparent)]
+    BackendError(#[from] BackendError),
 }
 
 impl IntoResponse for ApiError {
@@ -41,6 +43,7 @@ impl IntoResponse for ApiError {
             ApiError::IdError(error) => error.into_response(),
             ApiError::WriteReadError(error) => error.into_response(),
             ApiError::ApiS3Error(error) => error.into_response(),
+            ApiError::BackendError(error) => error.into_response(),
         }
     }
 }

@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use sqlx::Row;
 use validator::Validate;
 
 #[derive(Validate, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GiveAccessDto {
     pub can_read: bool,
     pub can_edit: bool,

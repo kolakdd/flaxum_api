@@ -10,6 +10,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::config::AppConfig;
 use crate::middleware::auth as auth_middleware;
+
 use crate::state::auth_state::AuthState;
 use crate::state::object_state::ObjectState;
 use crate::state::token_state::TokenState;
@@ -42,8 +43,10 @@ pub async fn app(config: Arc<AppConfig>) -> IntoMakeService<Router> {
         )));
 
     let app = Router::new().merge(public_routes).merge(protected_routes);
-    
-    let app = app.layer(TraceLayer::new_for_http()).layer(CorsLayer::permissive());
+
+    let app = app
+        .layer(TraceLayer::new_for_http())
+        .layer(CorsLayer::permissive());
 
     app.into_make_service()
 }

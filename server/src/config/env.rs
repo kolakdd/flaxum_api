@@ -15,7 +15,7 @@ pub struct EnvironmentVariables {
 
     pub postgres_user: Cow<'static, str>,
     pub postgres_password: Cow<'static, str>,
-    
+
     // todo: construct url
     pub database_url: Cow<'static, str>,
     pub database_pool_size: u32,

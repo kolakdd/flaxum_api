@@ -33,16 +33,17 @@ pub struct User {
     pub storage_size: i64,
 }
 
-
 impl User {
-    pub async fn build_superuser(env_var: &EnvironmentVariables) -> Self{
-        Self{
+    pub async fn build_superuser(env_var: &EnvironmentVariables) -> Self {
+        Self {
             id: Id::new_v4(),
             name_1: "Admin".to_string(),
             name_2: None,
             name_3: None,
             email: env_var.flaxum_super_user_email.to_string(),
-            hash_password: crypto::hash(env_var.flaxum_super_user_password.to_string()).await.unwrap(),
+            hash_password: crypto::hash(env_var.flaxum_super_user_password.to_string())
+                .await
+                .unwrap(),
             role_type: UserRole::Superuser,
             created_at: Utc::now().naive_utc(),
             updated_at: None,
@@ -51,6 +52,32 @@ impl User {
             is_blocked: false,
             blocked_at: None,
             storage_size: 0,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PublicUser {
+    pub id: Id,
+    pub name_1: String,
+    pub name_2: Option<String>,
+    pub name_3: Option<String>,
+    pub email: String,
+    pub role_type: UserRole,
+    pub storage_size: i64,
+}
+
+impl From<User> for PublicUser {
+    fn from(user: User) -> Self {
+        Self {
+            id: user.id,
+            name_1: user.name_1,
+            name_2: user.name_2,
+            name_3: user.name_3,
+            email: user.email,
+            role_type: user.role_type,
+            storage_size: user.storage_size,
         }
     }
 }

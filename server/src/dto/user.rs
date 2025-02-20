@@ -1,6 +1,4 @@
 use serde::{Deserialize, Serialize};
-
-use sqlx::Row;
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Validate)]
@@ -18,14 +16,33 @@ pub struct CreateUserDto {
     pub password: String,
 }
 
+
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateUserMeDto {
+    #[validate(length(min = 3, max = 31))]
+    pub name_1: Option<String>,
+    #[validate(length(min = 3, max = 31))]
+    pub name_2: Option<String>,
+    #[validate(length(min = 3, max = 31))]
+    pub name_3: Option<String>,
+}
+
+
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangePasswordDto {
+    #[validate(length(min = 3, max = 31))]
+    pub new_password: String,
+}
+
+
+
 #[derive(Serialize, sqlx::FromRow)]
 pub struct CreateUserOut {
     pub email: String,
     pub created_at: chrono::NaiveDateTime,
 }
 
-impl CreateUserOut {
-    pub fn new(email: String, created_at: chrono::NaiveDateTime) -> CreateUserOut {
-        CreateUserOut { email, created_at }
-    }
-}

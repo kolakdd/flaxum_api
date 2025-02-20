@@ -86,7 +86,7 @@ impl UxoRepositoryTrait for UxoRepository {
         JOIN "User" ON "UserXObject".user_id = "User".id
         WHERE object_id = $1;
         "#;
-        
+
         sqlx::query_as::<_, PublicUserXObject>(q)
             .bind(obj_id)
             .fetch_all(self.db_conn.get_pool())

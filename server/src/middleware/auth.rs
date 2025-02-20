@@ -34,17 +34,22 @@ pub async fn auth(
                 .await;
             match user {
                 Some(user) => {
+                    match (user.is_deleted, user.is_blocked) {
+                        (true, _) => {return Err(UserError::UserNotFound)?},
+                        (_, true) => {return Err(UserError::UserNotFound)?},
+                        _ => {},
+                    }
+
                     req.extensions_mut().insert(user);
                     Ok(next.run(req).await)
                 }
                 None => Err(UserError::UserNotFound)?,
             }
         }
-        Err(err) => {
-            match err.kind() {
-                ErrorKind::ExpiredSignature => Err(TokenError::TokenExpired)?,
-                _ => Err(TokenError::InvalidToken(token.parse().unwrap_or_default()))?,
-            }
-        }
+        Err(err) => match err.kind() {
+            ErrorKind::ExpiredSignature => Err(TokenError::TokenExpired)?,
+            _ => Err(TokenError::InvalidToken(token.parse().unwrap_or_default()))?,
+        },
     }
 }
+

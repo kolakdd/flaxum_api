@@ -64,7 +64,6 @@ impl ObjectRepositoryTrait for ObjectRepository {
          mimetype, created_at, updated_at, in_trash, eliminated 
          FROM "Object"
         WHERE eliminated is false and id = $1 "#;
-        
 
         sqlx::query_as::<_, Object>(q)
             .bind(id)
