@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{password_hash, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use passwords::PasswordGenerator;
 use tokio::task;
 
 pub async fn hash(password: String) -> Result<String> {
@@ -30,4 +31,17 @@ pub async fn verify(password: String, hash: String) -> Result<bool> {
     })
     .await
     .context("panic in verify()")?
+}
+
+pub async fn generate_password() -> String {
+    let pg = PasswordGenerator::new()
+        .length(12)
+        .numbers(true)
+        .lowercase_letters(true)
+        .uppercase_letters(true)
+        .symbols(true)
+        .spaces(false)
+        .exclude_similar_characters(true)
+        .strict(true);
+    pg.generate_one().unwrap()
 }

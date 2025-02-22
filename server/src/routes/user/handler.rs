@@ -8,9 +8,6 @@ use crate::{entity::user::User, state::user_state::UserState};
 use axum::Json;
 use axum::{extract::State, Extension};
 
-pub async fn admin_get_users(
-) {}
-
 pub async fn get_me(
     State(_): State<UserState>,
     Extension(current_user): Extension<User>,
@@ -19,13 +16,15 @@ pub async fn get_me(
     Ok(Json(public_user))
 }
 
-
 pub async fn update_me(
     State(state): State<UserState>,
     Extension(current_user): Extension<User>,
     ValidatedRequest(dto): ValidatedRequest<UpdateUserMeDto>,
 ) -> Result<Json<PublicUser>, ApiError> {
-    let public_user = state.user_service.update_user_me(dto, current_user.id).await?;
+    let public_user = state
+        .user_service
+        .update_user_me(dto, current_user.id)
+        .await?;
     Ok(Json(public_user))
 }
 
@@ -34,9 +33,10 @@ pub async fn change_password(
     Extension(current_user): Extension<User>,
     ValidatedRequest(dto): ValidatedRequest<ChangePasswordDto>,
 ) -> Result<Json<OkMessage>, ApiError> {
-    let _ = state.user_service.change_password(dto, current_user.id).await?;
+    let _ = state
+        .user_service
+        .change_password(dto, current_user.id)
+        .await?;
     Ok(Json(OkMessage::default()))
 }
 
-
-pub async fn delete_user() {}

@@ -2,10 +2,10 @@ use crate::config::database::{Database, DatabaseTrait};
 use crate::dto::user::{ChangePasswordDto, CreateUserDto, CreateUserOut, UpdateUserMeDto};
 use crate::entity::user::{PublicUser, User, UserRole};
 use crate::scalar::Id;
-use sqlx::{self, Execute, Executor, Postgres, QueryBuilder};
 use sqlx::Error as SqlxError;
-use tracing_subscriber::fmt::format;
+use sqlx::{self, Execute, Executor, Postgres, QueryBuilder};
 use std::sync::Arc;
+use tracing_subscriber::fmt::format;
 
 #[derive(Clone)]
 pub struct UserRepository {
@@ -20,9 +20,12 @@ pub trait UserRepositoryTrait {
 
     // async fn select_by_id(&self, id: u64) -> Result<User, SqlxError>;
     async fn select_by_email(&self, email: String) -> Option<User>;
-    async fn update_user_me(&self, payload: UpdateUserMeDto, id: Id) -> Result<PublicUser, SqlxError>;
+    async fn update_user_me(
+        &self,
+        payload: UpdateUserMeDto,
+        id: Id,
+    ) -> Result<PublicUser, SqlxError>;
     async fn update_password(&self, hash_password: String, id: Id) -> Result<(), SqlxError>;
-
 }
 
 impl UserRepositoryTrait for UserRepository {
@@ -75,16 +78,20 @@ impl UserRepositoryTrait for UserRepository {
             .unwrap_or(None)
     }
 
-    async fn update_user_me(&self, payload: UpdateUserMeDto, id: Id) -> Result<PublicUser, SqlxError> {
+    async fn update_user_me(
+        &self,
+        payload: UpdateUserMeDto,
+        id: Id,
+    ) -> Result<PublicUser, SqlxError> {
         let mut q: QueryBuilder<'_, Postgres> = QueryBuilder::new(r#"UPDATE "User" SET "#);
-            
+
         let mut its_first = true;
         if let Some(name_1) = payload.name_1 {
             q.push(" name_1 = ");
             q.push_bind(name_1);
             its_first = false;
-            }
-        
+        }
+
         if let Some(name_2) = payload.name_2 {
             if !its_first {
                 q.push(", ");
@@ -103,14 +110,14 @@ impl UserRepositoryTrait for UserRepository {
         q.push(r#" WHERE "User".id = "#);
         q.push_bind(id);
         q.push(r#" RETURNING *"#);
-    
-        let user = q.build_query_as::<User>()
+
+        let user = q
+            .build_query_as::<User>()
             .fetch_one(self.db_conn.get_pool())
             .await?;
-    
+
         Ok(PublicUser::from(user))
     }
-
 
     async fn update_password(&self, hash_password: String, id: Id) -> Result<(), SqlxError> {
         let mut q: QueryBuilder<'_, Postgres> = QueryBuilder::new(r#"UPDATE "User" SET "#);
@@ -120,11 +127,10 @@ impl UserRepositoryTrait for UserRepository {
         q.push_bind(id);
         q.push(r#" RETURNING *"#);
 
-    
-        let _ = q.build_query_as::<User>()
+        let _ = q
+            .build_query_as::<User>()
             .fetch_one(self.db_conn.get_pool())
             .await?;
         Ok(())
     }
-
 }

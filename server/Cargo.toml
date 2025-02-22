@@ -53,3 +53,4 @@ aws-config = { version = "1.5.16", features = ["behavior-version-latest"] }
 aws-sdk-s3 = "1.74.0"
 
 notify = "8.0.0"
+passwords = "3.1.16"

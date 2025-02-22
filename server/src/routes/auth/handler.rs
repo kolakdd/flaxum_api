@@ -9,6 +9,7 @@ use crate::state::auth_state::AuthState;
 use axum::{extract::State, Json};
 
 /// Регистрация пользователя по Логину и Паролю
+#[deprecated]
 pub async fn register_user(
     State(state): State<AuthState>,
     ValidatedRequest(payload): ValidatedRequest<CreateUserDto>,

@@ -2,7 +2,7 @@ use crate::{config::env::EnvironmentVariables, scalar::Id, utils::crypto};
 use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
+#[derive(Clone, Debug, Copy, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
 #[sqlx(type_name = "userRoleType", rename_all = "lowercase")]
 pub enum UserRole {
     Superuser,

@@ -16,6 +16,7 @@ use crate::state::object_state::ObjectState;
 use crate::state::token_state::TokenState;
 use crate::state::user_state::UserState;
 
+use super::admin_user;
 use super::object;
 use super::user;
 use super::uxo;
@@ -27,22 +28,33 @@ pub async fn app(config: Arc<AppConfig>) -> IntoMakeService<Router> {
     let s3_client = Arc::new(config.s3_client.clone());
 
     let auth_state = AuthState::new(&db_conn);
+
     let user_state = UserState::new(&db_conn);
     let object_state = ObjectState::new(&db_conn, &s3_client);
     let token_state = TokenState::new(&db_conn);
 
     let public_routes = auth::routes().with_state(auth_state);
 
-    let protected_routes = Router::new()
+    let user_access_routes = Router::new()
         .merge(object::routes().with_state(object_state.clone()))
-        .merge(uxo::routes().with_state(object_state))
-        .merge(user::routes().with_state(user_state))
+        .merge(uxo::routes().with_state(object_state.clone()))
+        .merge(user::routes().with_state(user_state.clone()))
         .layer(ServiceBuilder::new().layer(middleware::from_fn_with_state(
-            token_state,
-            auth_middleware::auth,
+            token_state.clone(),
+            auth_middleware::Auth::user_auth,
         )));
 
-    let app = Router::new().merge(public_routes).merge(protected_routes);
+    let super_user_access_routes = Router::new()
+        .merge(admin_user::routes().with_state(user_state.clone()))
+        .layer(ServiceBuilder::new().layer(middleware::from_fn_with_state(
+            token_state.clone(),
+            auth_middleware::Auth::superuser_auth,
+        )));
+
+    let app = Router::new()
+        .merge(public_routes)
+        .merge(user_access_routes)
+        .merge(super_user_access_routes);
 
     let app = app
         .layer(TraceLayer::new_for_http())
