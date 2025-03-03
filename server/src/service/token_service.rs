@@ -20,6 +20,8 @@ pub trait TokenServiceTrait {
 }
 
 impl TokenServiceTrait for TokenService {
+    const TOKEN_EXPIRATION: i64 = 30;
+
     fn new(secret: String) -> Self {
         Self { secret }
     }
@@ -59,5 +61,4 @@ impl TokenServiceTrait for TokenService {
         Ok(TokenReadDto { token, iat, exp })
     }
 
-    const TOKEN_EXPIRATION: i64 = 30;
 }

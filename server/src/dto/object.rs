@@ -3,6 +3,7 @@ use validator::Validate;
 
 use crate::scalar::Id;
 
+
 #[derive(Serialize, Deserialize, Default, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct GetObjectListDto {

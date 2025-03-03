@@ -58,7 +58,7 @@ impl Auth {
         }
     }
 
-    pub async fn superuser_auth(
+    pub async fn admin_auth(
         State(state): State<TokenState>,
         mut req: Request,
         next: Next,
@@ -87,9 +87,10 @@ impl Auth {
                         match (super_user.is_deleted, super_user.is_blocked, super_user.role_type) {
                             (true, _, _) => return Err(UserError::UserNotFound)?,
                             (_, true, _) => return Err(UserError::UserNotFound)?,
-                            (_, _, UserRole::Superuser) => {
+                            (_, _, UserRole::Superuser | UserRole::Admin ) => {
                                 // ok
                             }
+                            
                             _ => return Err(UserError::NotSuperUser)?,
                         }
                         req.extensions_mut().insert(super_user);

@@ -131,7 +131,7 @@ impl UxOAccess {
 }
 
 #[derive(Debug, sqlx::Type, sqlx::FromRow, Serialize, Deserialize, Clone)]
-#[allow(non_snake_case)]
+#[serde(rename_all = "camelCase")]
 pub struct UserXObject {
     pub user_id: Id,
     pub object_id: Id,
@@ -180,6 +180,7 @@ impl From<PgRow> for UserXObject {
 }
 
 #[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct PublicUserObject {
     owner_id: Id,
     owner_email: String,
@@ -196,7 +197,7 @@ impl PublicUserObject {
 
 /// Для передачи с дополнительными данными в .../access/...
 #[derive(sqlx::Type, Debug, Serialize, Deserialize, Clone)]
-#[allow(non_snake_case)]
+#[serde(rename_all = "camelCase")]  
 pub struct PublicUserXObject {
     #[sqlx(flatten)]
     pub uxo: UserXObject,
@@ -204,7 +205,6 @@ pub struct PublicUserXObject {
     pub owner_user: PublicUserObject,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl PublicUserXObject {
     pub fn new(uxo: UserXObject, owner_user: PublicUserObject) -> PublicUserXObject {
         PublicUserXObject { uxo, owner_user }
@@ -245,7 +245,13 @@ impl<'r> FromRow<'r, PgRow> for PublicUserXObject {
     }
 }
 
-#[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetUxoListOut{
+    pub items: Vec<PublicUserXObject> 
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct DownloadFileUrl {
     url: String,
     valid_until: DateTime<Local>,

@@ -21,6 +21,7 @@ pub struct ObjectRepository {
 pub trait ObjectRepositoryTrait {
     fn new(db_conn: &Arc<Database>) -> Self;
 
+    async fn select_list(&self, pagination: Pagination) -> Result<ObjectsPaginated, SqlxError>;
     async fn select_by_id(&self, id: Id) -> Result<Object, SqlxError>;
     async fn select_own_list(
         &self,
@@ -90,10 +91,8 @@ impl ObjectRepositoryTrait for ObjectRepository {
         } else {
             q.push(" AND parent_id IS NULL ");
         };
-
         let mut q = pagination_query_builder(q, &pagination);
         let res = q.build().fetch_all(self.db_conn.get_pool()).await?;
-
         let mut total_count = 0;
         let objects: Vec<Object> = res
             .into_iter()
@@ -118,10 +117,11 @@ impl ObjectRepositoryTrait for ObjectRepository {
     ) -> Result<ObjectsPaginated, SqlxError> {
         let mut q = QueryBuilder::new(
             r#"
-        SELECT * FROM "Object", COUNT(*) OVER() as total_count
-        JOIN "UserXObject" ON "Object".id = "UserXObject".object_id
-        where "Object".eliminated is false and "Object".in_trash is false 
-        and "Object".owner_id != "#,
+            SELECT *, COUNT(*) OVER() as total_count
+            FROM "Object" 
+            JOIN "UserXObject" ON "Object".id = "UserXObject".object_id
+            WHERE "Object".eliminated is false and "Object".in_trash is false
+            AND "Object".owner_id != "#,
         );
         q.push_bind(uxo_owner);
 
@@ -134,7 +134,6 @@ impl ObjectRepositoryTrait for ObjectRepository {
         };
         let mut q = pagination_query_builder(q, &pagination);
         let res = q.build().fetch_all(self.db_conn.get_pool()).await?;
-
         let mut total_count = 0;
         let objects: Vec<Object> = res
             .into_iter()
@@ -157,8 +156,11 @@ impl ObjectRepositoryTrait for ObjectRepository {
         owner_id: Id,
     ) -> Result<ObjectsPaginated, SqlxError> {
         let mut q = QueryBuilder::new(
-            r#"SELECT * FROM "Object", COUNT(*) OVER() as total_count
-            where eliminated is false and in_trash is true and owner_id = "#,
+            r#"
+            SELECT *, COUNT(*) OVER() as total_count
+            FROM "Object"
+            where eliminated is false and in_trash is true and owner_id = 
+            "#,
         );
         q.push_bind(owner_id);
         let mut q = pagination_query_builder(q, &pagination);
@@ -254,4 +256,33 @@ impl ObjectRepositoryTrait for ObjectRepository {
             .fetch_one(self.db_conn.get_pool())
             .await
     }
+
+    /// For admin get list
+    async fn select_list(&self, pagination: Pagination) -> Result<ObjectsPaginated, SqlxError> {
+        let q = QueryBuilder::new(
+            r#"
+            SELECT *, COUNT(*) OVER() as total_count
+            FROM "Object"
+            WHERE type != 'dir'
+            ORDER BY created_at desc
+            "#,
+        );
+        let mut q = pagination_query_builder(q, &pagination);
+        let res = q.build().fetch_all(self.db_conn.get_pool()).await?;
+        let mut total_count = 0;
+        let objects: Vec<Object> = res
+            .into_iter()
+            .map(|row| {
+                total_count = row.get::<i64, _>("total_count");
+                Object::from(row)
+            })
+            .collect();
+        Ok(ObjectsPaginated::build(
+            objects,
+            pagination.limit,
+            pagination.offset,
+            total_count,
+        ))
+    }
+
 }

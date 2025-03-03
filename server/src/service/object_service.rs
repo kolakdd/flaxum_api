@@ -160,4 +160,14 @@ impl ObjectService {
         let res = self.s3_repo.generate_presigned_url(obj).await?;
         Ok(res)
     }
+
+
+
+    pub async fn admin_get_object_list(&self, pagination: Pagination) -> Result<ObjectsPaginated, ApiError>{
+        let objects_paginated = self
+        .object_repo
+        .select_list(pagination)
+        .await?;
+        Ok(objects_paginated)
+    }
 }

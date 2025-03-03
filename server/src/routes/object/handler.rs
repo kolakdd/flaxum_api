@@ -21,7 +21,6 @@ use crate::entity::object::{
 use crate::entity::user::User;
 
 /// Получение собственных объектов
-#[axum::debug_handler]
 pub async fn get_own_list(
     State(state): State<ObjectState>,
     Extension(current_user): Extension<User>,

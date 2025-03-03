@@ -1,4 +1,5 @@
 use crate::dto::uxo::GiveAccessDto;
+use crate::entity::object::GetUxoListOut;
 use crate::entity::object::PublicUserXObject;
 use crate::entity::user::User;
 use crate::error::api_error::ApiError;
@@ -16,7 +17,7 @@ pub async fn list_access(
     State(state): State<ObjectState>,
     Extension(_): Extension<User>,
     Path(object_id): Path<Id>,
-) -> Result<Json<Vec<PublicUserXObject>>, ApiError> {
+) -> Result<Json<GetUxoListOut>, ApiError> {
     let res = state.uxo_service.get_object_uxo_list(object_id).await?;
     Ok(Json(res))
 }

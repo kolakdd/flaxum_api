@@ -16,6 +16,7 @@ use crate::state::object_state::ObjectState;
 use crate::state::token_state::TokenState;
 use crate::state::user_state::UserState;
 
+use super::admin_object;
 use super::admin_user;
 use super::object;
 use super::user;
@@ -44,17 +45,19 @@ pub async fn app(config: Arc<AppConfig>) -> IntoMakeService<Router> {
             auth_middleware::Auth::user_auth,
         )));
 
-    let super_user_access_routes = Router::new()
+        // todo: admin_state
+    let admin_access_routes = Router::new()
         .merge(admin_user::routes().with_state(user_state.clone()))
+        .merge(admin_object::routes().with_state(object_state.clone()))
         .layer(ServiceBuilder::new().layer(middleware::from_fn_with_state(
             token_state.clone(),
-            auth_middleware::Auth::superuser_auth,
+            auth_middleware::Auth::admin_auth,
         )));
 
     let app = Router::new()
         .merge(public_routes)
         .merge(user_access_routes)
-        .merge(super_user_access_routes);
+        .merge(admin_access_routes);
 
     let app = app
         .layer(TraceLayer::new_for_http())
