@@ -53,7 +53,7 @@ pub struct Object {
 impl Object {
     pub fn new(
         id: Id,
-        parent_id: Option<Uuid>,
+        parent_id: Option<Id>,
         owner_id: Id,
         creator_id: Id,
         name: String,

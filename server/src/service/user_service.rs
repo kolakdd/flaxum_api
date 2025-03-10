@@ -3,7 +3,8 @@ use crate::dto::user::{
     AdminCreateUserDto, AdminCreateUserOut, ChangePasswordDto, CreateUserDto, CreateUserOut,
     UpdateUserMeDto,
 };
-use crate::entity::user::{PublicUser, User};
+use crate::entity::pagination::Pagination;
+use crate::entity::user::{PublicUser, User, AdminUsersPaginated};
 use crate::error::api_error::ApiError;
 use crate::error::db_error::DbError;
 use crate::error::user_error::UserError;
@@ -56,6 +57,17 @@ impl UserService {
             }
         };
     }
+
+
+
+    pub async fn admin_get_user_list(
+        &self,
+        pagination: Pagination,
+    ) -> Result<AdminUsersPaginated, ApiError> {
+        let users_paginated = self.user_repo.select_user_list(pagination).await?;
+        Ok(users_paginated)
+    }
+
 
     #[deprecated]
     pub async fn register_user(

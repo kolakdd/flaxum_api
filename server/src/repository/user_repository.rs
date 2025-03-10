@@ -1,11 +1,13 @@
 use crate::config::database::{Database, DatabaseTrait};
-use crate::dto::user::{ChangePasswordDto, CreateUserDto, CreateUserOut, UpdateUserMeDto};
-use crate::entity::user::{PublicUser, User, UserRole};
+use crate::db::pagination_query_builder;
+use crate::dto::user::{CreateUserDto, CreateUserOut, UpdateUserMeDto};
+use crate::entity::pagination::Pagination;
+use crate::entity::user::{AdminUser, AdminUsersPaginated, PublicUser, User, UserRole};
 use crate::scalar::Id;
 use sqlx::Error as SqlxError;
-use sqlx::{self, Execute, Executor, Postgres, QueryBuilder};
+use sqlx::{self, Postgres, QueryBuilder};
 use std::sync::Arc;
-use tracing_subscriber::fmt::format;
+use sqlx::Row;
 
 #[derive(Clone)]
 pub struct UserRepository {
@@ -26,6 +28,12 @@ pub trait UserRepositoryTrait {
         id: Id,
     ) -> Result<PublicUser, SqlxError>;
     async fn update_password(&self, hash_password: String, id: Id) -> Result<(), SqlxError>;
+
+    async fn select_user_list(
+        &self,
+        pagination: Pagination,
+    ) -> Result<AdminUsersPaginated, SqlxError>;
+
 }
 
 impl UserRepositoryTrait for UserRepository {
@@ -77,6 +85,37 @@ impl UserRepositoryTrait for UserRepository {
             .await
             .unwrap_or(None)
     }
+
+    async fn select_user_list(
+        &self,
+        pagination: Pagination,
+    ) -> Result<AdminUsersPaginated, SqlxError>{
+
+        let q = QueryBuilder::new(
+            r#"
+            SELECT *, COUNT(*) OVER() as total_count
+            FROM "User" 
+            ORDER BY created_at desc 
+            "#,
+        );
+        let mut q = pagination_query_builder(q, &pagination);
+        let res = q.build().fetch_all(self.db_conn.get_pool()).await?;
+        let mut total_count = 0;
+        let users: Vec<AdminUser> = res
+            .into_iter()
+            .map(|row| {
+                total_count = row.get::<i64, _>("total_count");
+                AdminUser::from(row)
+            })
+            .collect();
+        Ok(AdminUsersPaginated::build(
+            users   ,
+            pagination.limit,
+            pagination.offset,
+            total_count,
+        ))
+    }
+
 
     async fn update_user_me(
         &self,

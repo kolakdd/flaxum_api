@@ -20,7 +20,7 @@ pub trait TokenServiceTrait {
 }
 
 impl TokenServiceTrait for TokenService {
-    const TOKEN_EXPIRATION: i64 = 30;
+    const TOKEN_EXPIRATION: i64 = 60 * 24;
 
     fn new(secret: String) -> Self {
         Self { secret }
