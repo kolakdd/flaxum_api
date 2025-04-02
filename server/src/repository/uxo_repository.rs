@@ -1,6 +1,6 @@
 use crate::{
     config::database::{Database, DatabaseTrait},
-    dto::uxo::GiveAccessDto,
+    dto::uxo::{DeleteAccessDto, GiveAccessDto},
     entity::object::{PublicUserXObject, UserXObject, UxOAccess},
     scalar::Id,
 };
@@ -31,6 +31,11 @@ pub trait UxoRepositoryTrait {
         obj_id: Id,
         access_dto: GiveAccessDto,
     ) -> Result<PublicUserXObject, SqlxError>;
+
+    async fn delete_access_by_user_id(
+        &self,
+        access_dto: DeleteAccessDto,
+    ) -> Result<(), SqlxError>;
 }
 
 impl UxoRepositoryTrait for UxoRepository {
@@ -128,5 +133,21 @@ impl UxoRepositoryTrait for UxoRepository {
             .bind(access_dto.can_delete)
             .fetch_one(self.db_conn.get_pool())
             .await
+    }
+
+
+    async fn delete_access_by_user_id(
+        &self,
+        access_dto: DeleteAccessDto,
+    ) -> Result<(), SqlxError>{
+        let q = r#"
+        DELETE FROM "UserXObject" WHERE user_id = $1 AND object_id = $2
+        "#;
+        sqlx::query(q)
+            .bind(access_dto.recipient_id)
+            .bind(access_dto.obj_id)
+            .execute(self.db_conn.get_pool())
+            .await?;
+        Ok(())
     }
 }

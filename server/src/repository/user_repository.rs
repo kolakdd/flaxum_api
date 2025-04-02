@@ -94,7 +94,7 @@ impl UserRepositoryTrait for UserRepository {
         let q = QueryBuilder::new(
             r#"
             SELECT *, COUNT(*) OVER() as total_count
-            FROM "User" 
+            FROM "User" WHERE role_type != 'superuser'
             ORDER BY created_at desc 
             "#,
         );

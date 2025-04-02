@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use crate::config::database::Database;
-use crate::dto::uxo::GiveAccessDto;
+use crate::dto::uxo::{DeleteAccessDto, DeleteAccessDtoIn, GiveAccessDto};
 use crate::entity::object::{GetUxoListOut, PublicUserXObject};
 use crate::error::api_error::ApiError;
+use crate::error::backend_error::BackendError;
 use crate::repository::uxo_repository::{UxoRepository, UxoRepositoryTrait};
 use crate::scalar::Id;
 
@@ -37,4 +38,19 @@ impl UxoService {
         let res = self.uxo_repo.insert_access_by_email(obj_id, dto).await?;
         Ok(res)
     }
+
+    pub async fn remove_access_by_user_id(
+        &self,
+        owner_id: Id,
+        obj_id: Id,
+        dto: DeleteAccessDtoIn,
+    ) -> Result<(), ApiError> {
+        if owner_id == dto.recipient_id {
+            return Err(BackendError::CloseAccessYourSelf)?;
+        }
+        let dto = DeleteAccessDto { obj_id, recipient_id: dto.recipient_id};
+        let res = self.uxo_repo.delete_access_by_user_id(dto).await?;
+        Ok(res)
+    }
+
 }

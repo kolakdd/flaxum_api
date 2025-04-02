@@ -1,9 +1,11 @@
+use crate::dto::uxo::DeleteAccessDtoIn;
 use crate::dto::uxo::GiveAccessDto;
 use crate::entity::object::GetUxoListOut;
 use crate::entity::object::PublicUserXObject;
 use crate::entity::user::User;
 use crate::error::api_error::ApiError;
 use crate::error::request_error::ValidatedRequest;
+use crate::response::api_response::OkMessage;
 use crate::scalar::Id;
 use crate::state::object_state::ObjectState;
 
@@ -37,7 +39,15 @@ pub async fn post_give_access(
 }
 
 /// Забрать доступ
-pub async fn close_access() {}
-
-///Список объектов которыми поделились
-pub async fn shared_object_list() {}
+pub async fn close_access(
+    State(state): State<ObjectState>,
+    Extension(current_user): Extension<User>,
+    Path(object_id): Path<Id>,
+    ValidatedRequest(dto): ValidatedRequest<DeleteAccessDtoIn>,
+) -> Result<Json<OkMessage>, ApiError> {
+    let _ = state
+        .uxo_service
+        .remove_access_by_user_id(current_user.id, object_id, dto)
+        .await?;
+    Ok(Json(OkMessage::default()))
+}
