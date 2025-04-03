@@ -23,10 +23,11 @@ impl AppConfig {
     pub async fn load() -> anyhow::Result<Self> {
         let env = EnvironmentVariables::from_env()?;
 
-        println!("database_url = {}",&env.database_url);
         if !sqlx::Postgres::database_exists(&env.database_url).await? {
-            println!("lolker");
+            tracing::info!("Database not exist. \nStarting create database.");
             sqlx::Postgres::create_database(&env.database_url).await?;
+            tracing::info!("Creating database finised.");
+
         }
 
         let db_conn = Database::init(&env)
