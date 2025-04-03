@@ -8,6 +8,7 @@ use anyhow;
 use aws_sdk_s3::Client;
 use database::{Database, DatabaseTrait};
 use s3::S3Client;
+use sqlx::migrate::MigrateDatabase;
 
 pub const SIZE_1GB: usize = 1024 * 1024 * 1024;
 
@@ -21,6 +22,13 @@ pub struct AppConfig {
 impl AppConfig {
     pub async fn load() -> anyhow::Result<Self> {
         let env = EnvironmentVariables::from_env()?;
+
+        println!("database_url = {}",&env.database_url);
+        if !sqlx::Postgres::database_exists(&env.database_url).await? {
+            println!("lolker");
+            sqlx::Postgres::create_database(&env.database_url).await?;
+        }
+
         let db_conn = Database::init(&env)
             .await
             .unwrap_or_else(|e| panic!("Database error {}", e));
