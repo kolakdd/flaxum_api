@@ -136,7 +136,7 @@ pub async fn send_upload_user_event(event: UploadUserEvent, conn: &Connection) {
                 BasicPublishArguments::new(EXCHANGE_UPLOAD_OBJECT, ROUTING_KEY_EVENT_UPLOAD_USER);
             if let Err(err) = channel
                 .basic_publish(
-                    BasicProperties::default(),
+                    BasicProperties::default().with_persistence(true).finish(),
                     content.as_bytes().to_vec(),
                     args,
                 )

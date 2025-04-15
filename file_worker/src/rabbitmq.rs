@@ -6,7 +6,10 @@ use amqprs::{
     consumer::AsyncConsumer,
 };
 use async_trait::async_trait;
-use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::{
+    operation::create_multipart_upload::CreateMultipartUploadOutput, primitives::ByteStream,
+    types::CompletedPart,
+};
 use std::{
     fmt,
     fs::{self},
@@ -21,15 +24,16 @@ use crate::Config;
 use super::env::EnvironmentVariables;
 use serde::{Deserialize, Serialize};
 
-use aes::{Aes256, cipher::KeyInit};
+use aes::Aes256;
 use ctr::Ctr128BE;
 use ctr::cipher::StreamCipher;
 use sha2::{Sha256, digest::Digest};
 
 type Aes256Ctr = Ctr128BE<Aes256>;
 
-pub const QUEUE_EVENT_UPLOAD_USER: &str = "flaxum.upload.object.user";
+const CHUNK_SIZE: u64 = 1024 * 1024 * 8;
 
+pub const QUEUE_EVENT_UPLOAD_USER: &str = "flaxum.upload.object.user";
 pub const ROUTING_KEY_EVENT_UPLOAD_USER: &str = "event.upload.user";
 
 static TMP_DIR: &str = "tmp";
@@ -85,7 +89,12 @@ impl FileUploaderConsumer {
 
     pub async fn send(&self, event: UploadUserEvent) -> Result<(), Box<dyn std::error::Error>> {
         // todo: error handling
-        let path_to_file = format!("tmp{}{}.{}", PATH_SEPO, event.user_id, event.object_id);
+        let upload_bucket = self.config.env.upload_main_bucket.clone();
+        let s3_path = format!("{}{}{}", event.user_id, PATH_SEPO, event.object_id);
+        let path_to_file = format!(
+            "{}{}{}.{}",
+            TMP_DIR, PATH_SEPO, event.user_id, event.object_id
+        );
         let data = fs::read(&path_to_file)?;
 
         let mut key = [0u8; 32];
@@ -102,26 +111,63 @@ impl FileUploaderConsumer {
         let mut enc_data = data;
         cipher.apply_keystream(&mut enc_data);
         tracing::debug!("Encrypt elapsed: {:.2?}", now.elapsed());
-        fs::write(&path_to_file, &enc_data)?;
 
-        let body = ByteStream::from_path(std::path::Path::new(&path_to_file)).await?;
-        let s3_path = format!("{}{}{}", event.user_id, PATH_SEPO, event.object_id);
-
-        let result = self
-            .config
-            .s3_client
-            .put_object()
-            .bucket(self.config.env.upload_main_bucket.clone())
-            .key(s3_path)
-            .body(body)
-            .send()
-            .await;
-
-        match result {
-            Ok(response) => println!("S3 upload success: {:?}", response),
-            Err(e) => println!("S3 upload error: {:?}", e),
+        let size: u64 = enc_data.len() as u64;
+        let mut chunk_count = (size / CHUNK_SIZE) + 1;
+        let mut size_of_last_chunk = size % CHUNK_SIZE;
+        if size_of_last_chunk == 0 {
+            size_of_last_chunk = CHUNK_SIZE;
+            chunk_count -= 1;
         }
 
+        let multipart_upload_res: CreateMultipartUploadOutput = self
+            .config
+            .s3_client
+            .create_multipart_upload()
+            .bucket(upload_bucket.clone())
+            .key(&s3_path)
+            .send()
+            .await
+            .unwrap();
+
+        let upload_id = multipart_upload_res.upload_id().unwrap();
+        let mut upload_parts: Vec<aws_sdk_s3::types::CompletedPart> = Vec::new();
+
+        for chunk_index in 0..chunk_count {
+            let this_chunk = if chunk_count - 1 == chunk_index {
+                size_of_last_chunk
+            } else {
+                CHUNK_SIZE
+            };
+            let stream = ByteStream::read_from()
+                .path(&path_to_file)
+                .offset(chunk_index * CHUNK_SIZE)
+                .length(aws_sdk_s3::primitives::Length::Exact(this_chunk))
+                .build()
+                .await
+                .unwrap();
+
+            let part_number = (chunk_index as i32) + 1;
+            let upload_part_res = self
+                .config
+                .s3_client
+                .upload_part()
+                .key(&s3_path)
+                .bucket(upload_bucket.clone())
+                .upload_id(upload_id)
+                .body(stream)
+                .part_number(part_number)
+                .send()
+                .await
+                .unwrap();
+
+            upload_parts.push(
+                CompletedPart::builder()
+                    .e_tag(upload_part_res.e_tag.unwrap_or_default())
+                    .part_number(part_number)
+                    .build(),
+            );
+        }
         // Удаление временного файла
         fs::remove_file(&path_to_file)?;
         Ok(())

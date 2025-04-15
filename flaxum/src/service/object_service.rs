@@ -19,7 +19,7 @@ use std::io::Write;
 use std::sync::Arc;
 use std::time::Instant;
 
-use aes::{cipher::KeyInit, Aes256};
+use aes::Aes256;
 use ctr::cipher::StreamCipher;
 use ctr::Ctr128BE;
 use sha2::{digest::Digest, Sha256};
@@ -98,7 +98,7 @@ impl ObjectService {
             .object_repo
             .insert_object(&mut tx, obj_constructor)
             .await?;
-        let new_uxo = self
+        let _ = self
             .uxo_repo
             .insert_uxo(&mut tx, new_obj.owner_id, new_obj.id, UxOAccess::owner())
             .await?;
@@ -139,11 +139,11 @@ impl ObjectService {
                     .to_string();
 
                 let file_id = Id::new_v4();
+
                 let file_path = format!("tmp/{}.{}", user_id, file_id);
                 let mut file = fs::File::create(&file_path)?;
                 let mut total_size: usize = 0;
 
-                // Используем try_next() вместо chunk() для более надежного чтения
                 let mut stream = multipart_field;
                 loop {
                     match stream.chunk().await {
@@ -151,7 +151,7 @@ impl ObjectService {
                             total_size += chunk.len();
                             file.write_all(&chunk)?;
                         }
-                        Ok(None) => break, // Успешное завершение потока
+                        Ok(None) => break,
                         Err(e) => {
                             return Err(ApiError::BackendError(
                                 crate::error::backend_error::BackendError::InternalError(format!(
@@ -162,8 +162,7 @@ impl ObjectService {
                         }
                     }
                 }
-
-                // Создаем объект после успешной загрузки файла
+                tracing::debug!("file uploaded.");
                 let mut obj_constructor = ObjectCreateModel::default();
                 obj_constructor.id = file_id;
                 obj_constructor.parent_id = object_parent;
@@ -191,7 +190,9 @@ impl ObjectService {
                     object_id: file_id.to_string(),
                     key,
                 };
+                tracing::debug!("transaction ready");
                 send_upload_user_event(event, &self.rmq_conn).await;
+                tracing::debug!("send_upload_user_event finished");
                 tx.commit().await?;
 
                 return Ok(new_obj);
@@ -217,9 +218,7 @@ impl ObjectService {
 
     pub async fn download_own_file(&self, id: Id) -> Result<DownloadFileUrl, ApiError> {
         let obj = self.object_repo.select_by_id(id).await?;
-        // ////////
         let data: Vec<u8> = self.s3_repo.get_bytes(&obj).await.unwrap();
-        // //////
         let mut key = [0u8; 32];
         hex::decode_to_slice(
             &"eeef72847ca361dfb4dc22727910538a6339932998f56b124152690ef5516479",
@@ -235,14 +234,9 @@ impl ObjectService {
 
         let now = Instant::now();
         let mut decoded_data = data;
-        // symetric decode
         cipher.apply_keystream(&mut decoded_data);
         tracing::debug!("Decrupted elapsed: {:.2?}", now.elapsed());
-        // ///////
-        // закидываю в s3
         let _ = self.s3_repo.upload_bytes(&obj, decoded_data).await.unwrap();
-        // делаю на него ссылку
-
         let res = self.s3_repo.generate_presigned_url(obj).await?;
         Ok(res)
     }

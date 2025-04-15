@@ -22,7 +22,7 @@ sqlx = { version = "0.8.3", features = ["runtime-tokio", "tls-native-tls", "post
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
 
-amqprs = { version = "1.5.3", features = ["traces"] }
+amqprs = { version = "2.1.1", features = ["traces"] }
 
 aes = "0.8"
 ctr = "0.9"

@@ -56,7 +56,7 @@ aws-sdk-s3 = "1.74.0"
 notify = "8.0.0"
 passwords = "3.1.16"
 
-amqprs = { version = "1.5.3", features = ["traces"] }
+amqprs = { version = "2.1.1", features = ["traces"] }
 
 aes = "0.8"
 ctr = "0.9"

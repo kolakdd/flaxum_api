@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use crate::config::parameter;
 use crate::entity::object::{DownloadFileUrl, Object};
-use crate::scalar::Id;
 use aws_sdk_s3::operation::create_multipart_upload::CreateMultipartUploadOutput;
 use aws_sdk_s3::presigning::PresigningConfig;
 use aws_sdk_s3::primitives::ByteStream;
@@ -14,7 +13,6 @@ use aws_sdk_s3::Error as S3Error;
 use bytes::Bytes;
 
 const CHUNK_SIZE: u64 = 1024 * 1024 * 8;
-const MAX_CHUNKS: u64 = 10000;
 
 #[derive(Clone)]
 pub struct S3Repository {
@@ -36,10 +34,9 @@ impl S3RepositoryTrait for S3Repository {
         }
     }
     async fn get_bytes(&self, obj: &Object) -> Result<Vec<u8>, S3Error> {
-
         println!("key = {}", format!("{}/{}", obj.owner_id, obj.id));
         println!("bucket  = {}", parameter::get("UPLOAD_MAIN_BUCKET"));
-        
+
         let obj = self
             .s3_conn
             .get_object()
@@ -49,7 +46,7 @@ impl S3RepositoryTrait for S3Repository {
             .await
             .unwrap();
         println!("obj = {:?}", obj);
-    
+
         let bytes = obj.body.collect().await.unwrap().to_vec();
         Ok(bytes)
     }

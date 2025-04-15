@@ -12,7 +12,7 @@ async fn main() -> anyhow::Result<()> {
     parameter::init();
     logger::init()?;
     let config = Arc::new(AppConfig::load().await?);
-    task::spawn(async {
+    task::spawn(async move {
         tracing::warn!("worker spawn activation");
         file_worker::spawn_worker().await;
     });
