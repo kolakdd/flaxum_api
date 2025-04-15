@@ -1,11 +1,10 @@
-version: "3.8"
-
 services:
+
   minio:
     image: quay.io/minio/minio
     command: server /data --console-address ":9001"
     env_file:
-      - path: ../.env
+      - ../.env
     volumes:
       - minio_data:/data
     ports:
@@ -16,15 +15,25 @@ services:
     image: postgres:17-alpine
     restart: always
     env_file:
-      - path: ../.env
+      - ../.env
     ports:
       - "5432:5432"
     volumes:
-     - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3.10.7-management
+    hostname: rabbitmq
+    restart: always
+    env_file:
+      - ../.env
+    ports:
+      - "5672:5672"  #  AMQP
+      - 15672:15672
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/data
 
 volumes:
   minio_data:
   postgres_data:
-
-
-
+  rabbitmq_data:

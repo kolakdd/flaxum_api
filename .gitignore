@@ -2,3 +2,7 @@
 /tmp
 .env
 /.idea
+/deploy/loki
+/deploy/grafana
+/deploy/promtail
+/deploy/tempo
