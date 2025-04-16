@@ -14,10 +14,11 @@ use crate::scalar::Id;
 use aes::cipher::KeyIvInit;
 use aws_sdk_s3::Client as S3Client;
 use axum::extract::Multipart;
-use std::fs;
-use std::io::Write;
+use tokio::fs;
+use tokio::io::{AsyncSeekExt, AsyncWriteExt};
+use std::io::{Seek, SeekFrom, Write};
 use std::sync::Arc;
-use std::time::Instant;
+use tokio::time::Instant;
 
 use aes::Aes256;
 use ctr::cipher::StreamCipher;
@@ -141,15 +142,17 @@ impl ObjectService {
                 let file_id = Id::new_v4();
 
                 let file_path = format!("tmp/{}.{}", user_id, file_id);
-                let mut file = fs::File::create(&file_path)?;
+                let mut file = fs::File::create(&file_path).await?;
                 let mut total_size: usize = 0;
 
+                let mut hasher = Sha256::new();
                 let mut stream = multipart_field;
                 loop {
                     match stream.chunk().await {
                         Ok(Some(chunk)) => {
                             total_size += chunk.len();
-                            file.write_all(&chunk)?;
+                            file.write_all(&chunk).await?;
+                            hasher.update(&chunk); 
                         }
                         Ok(None) => break,
                         Err(e) => {
@@ -163,6 +166,7 @@ impl ObjectService {
                     }
                 }
                 tracing::debug!("file uploaded.");
+
                 let mut obj_constructor = ObjectCreateModel::default();
                 obj_constructor.id = file_id;
                 obj_constructor.parent_id = object_parent;
@@ -172,28 +176,50 @@ impl ObjectService {
                 obj_constructor.size = Some(total_size as i64);
                 obj_constructor.type_ = ObjectType::File;
                 obj_constructor.mimetype = Some(mimetype);
+                obj_constructor.upload_s3 = Some(false);
+
+                let key = UploadUserEvent::generate_key(32);
+                obj_constructor.decode_key = Some(key.clone());
+                
+                file.seek(SeekFrom::Start(0)).await?;
+                println!("seeked");
+                let hash_res = hasher.finalize();
+                let hash_sha256 = hex::encode(hash_res).to_string();
+                println!("hash_sha256 = {}", hash_sha256);
+                obj_constructor.hash_sha256 = Some(hash_sha256);
+
 
                 let mut tx = self.db_conn.get_pool().begin().await?;
+                println!("start tx = ");
+
                 let new_obj: Object = self
                     .object_repo
                     .insert_object(&mut tx, obj_constructor)
                     .await?;
+                println!("new_obj created ");
 
                 self.uxo_repo
                     .insert_uxo(&mut tx, new_obj.owner_id, new_obj.id, UxOAccess::owner())
                     .await?;
-
-                //
-                let key = UploadUserEvent::generate_key(32);
+                println!("uxo created ");
+        
                 let event = UploadUserEvent {
                     user_id: user_id.to_string(),
                     object_id: file_id.to_string(),
-                    key,
+                    key: key,
                 };
+                println!("event registred ");
+
                 tracing::debug!("transaction ready");
-                send_upload_user_event(event, &self.rmq_conn).await;
+
+                let rmq_con = self.rmq_conn.clone();
+                tokio::spawn(async move {
+                    send_upload_user_event(event, &rmq_con).await;
+                });
+                
                 tracing::debug!("send_upload_user_event finished");
                 tx.commit().await?;
+                println!("ALL GOOD");
 
                 return Ok(new_obj);
             }
@@ -213,29 +239,35 @@ impl ObjectService {
                 false => self.object_repo.mark_as_restored(dto.file_id).await?,
             },
         };
+
         Ok(res)
     }
 
     pub async fn download_own_file(&self, id: Id) -> Result<DownloadFileUrl, ApiError> {
         let obj = self.object_repo.select_by_id(id).await?;
         let data: Vec<u8> = self.s3_repo.get_bytes(&obj).await.unwrap();
-        let mut key = [0u8; 32];
-        hex::decode_to_slice(
-            &"eeef72847ca361dfb4dc22727910538a6339932998f56b124152690ef5516479",
-            &mut key,
-        )
-        .unwrap();
-        let mut hasher = Sha256::new();
-        Digest::update(&mut hasher, key);
-        let result = hasher.finalize();
 
-        let nonce: [u8; 16] = result[..16].try_into().unwrap();
+        let mut key = [0u8; 32];
+        let nonce: [u8; 16] = {
+            hex::decode_to_slice(obj.clone().decode_key.unwrap(), &mut key).unwrap();    
+            let mut hasher = Sha256::new();
+            Digest::update(&mut hasher, key);
+            let result = hasher.finalize();
+            result[..16].try_into().unwrap()
+        };
         let mut cipher = Aes256Ctr::new(&key.into(), &nonce.into());
 
         let now = Instant::now();
         let mut decoded_data = data;
         cipher.apply_keystream(&mut decoded_data);
         tracing::debug!("Decrupted elapsed: {:.2?}", now.elapsed());
+
+        let mut hasher = Sha256::new();
+        hasher.update(&decoded_data);
+        let hash_res = hasher.finalize();
+        let hash_sha256 = hex::encode(hash_res).to_string();
+        println!("new hash = {}, old hash = {}", hash_sha256, &obj.hash_sha256.clone().unwrap().to_string());
+
         let _ = self.s3_repo.upload_bytes(&obj, decoded_data).await.unwrap();
         let res = self.s3_repo.generate_presigned_url(obj).await?;
         Ok(res)

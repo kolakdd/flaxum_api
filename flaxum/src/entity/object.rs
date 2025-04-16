@@ -47,6 +47,9 @@ pub struct Object {
     pub updated_at: Option<chrono::NaiveDateTime>,
     pub in_trash: bool,
     pub eliminated: bool,
+    pub upload_s3: Option<bool>,
+    pub decode_key: Option<String>,
+    pub hash_sha256: Option<String>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -64,6 +67,9 @@ impl Object {
         updated_at: Option<chrono::NaiveDateTime>,
         in_trash: bool,
         eliminated: bool,
+        upload_s3: Option<bool>,
+        decode_key: Option<String>,
+        hash_sha256: Option<String>,
     ) -> Object {
         Object {
             id,
@@ -78,6 +84,9 @@ impl Object {
             updated_at,
             in_trash,
             eliminated,
+            upload_s3,
+            decode_key,
+            hash_sha256,
         }
     }
 }
@@ -97,6 +106,10 @@ impl From<PgRow> for Object {
             value.get("updated_at"),
             value.get("in_trash"),
             value.get("eliminated"),
+            value.get("upload_s3"),
+            value.get("decode_key"),
+            value.get("hash_sha256"),
+
         )
     }
 }
@@ -111,6 +124,9 @@ pub struct ObjectCreateModel {
     pub size: Option<i64>,
     pub type_: ObjectType,
     pub mimetype: Option<String>,
+    pub upload_s3: Option<bool>,
+    pub decode_key: Option<String>,
+    pub hash_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone)]

@@ -61,9 +61,9 @@ impl ObjectRepositoryTrait for ObjectRepository {
 
     async fn select_by_id(&self, id: Id) -> Result<Object, SqlxError> {
         let q = r#"
-        SELECT id, parent_id, owner_id, creator_id, name, size, type AS "type_",
-         mimetype, created_at, updated_at, in_trash, eliminated 
-         FROM "Object"
+        SELECT 
+        id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated, upload_s3, decode_key, hash_sha256
+        FROM "Object"
         WHERE eliminated is false and id = $1 "#;
 
         sqlx::query_as::<_, Object>(q)
@@ -189,11 +189,11 @@ impl ObjectRepositoryTrait for ObjectRepository {
     ) -> Result<Object, SqlxError> {
         let q = r#"
     INSERT INTO "Object" 
-    (id, parent_id, owner_id, creator_id, name, size, type, mimetype) 
+    (id, parent_id, owner_id, creator_id, name, size, type, mimetype, upload_s3, decode_key, hash_sha256) 
     VALUES 
-    ($1, $2, $3, $4, $5, $6, $7, $8) 
+    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
     RETURNING 
-    id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated
+    id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated, upload_s3, decode_key, hash_sha256
     "#;
 
         sqlx::query_as::<_, Object>(q)
@@ -205,6 +205,10 @@ impl ObjectRepositoryTrait for ObjectRepository {
             .bind(create_model.size)
             .bind(create_model.type_)
             .bind(create_model.mimetype)
+
+            .bind(create_model.upload_s3)
+            .bind(create_model.decode_key)
+            .bind(create_model.hash_sha256)
             .fetch_one(&mut **tx)
             .await
     }
@@ -213,8 +217,8 @@ impl ObjectRepositoryTrait for ObjectRepository {
         let q = r#"
             UPDATE "Object" SET in_trash = $1, updated_at = $2  
             WHERE id = $3
-            RETURNING id, parent_id, owner_id, creator_id, name, size, type AS "type_", 
-            mimetype, created_at, updated_at, in_trash, eliminated 
+            RETURNING 
+            id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated, upload_s3, decode_key, hash_sha256
                     "#;
 
         sqlx::query_as::<_, Object>(q)
@@ -229,8 +233,8 @@ impl ObjectRepositoryTrait for ObjectRepository {
         let q = r#"
         UPDATE "Object" SET in_trash = $1, updated_at = $2  
         WHERE id = $3
-        RETURNING id, parent_id, owner_id, creator_id, name, size, type AS "type_", 
-        mimetype, created_at, updated_at, in_trash, eliminated 
+        RETURNING 
+        id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated, upload_s3, decode_key, hash_sha256
       "#;
 
         sqlx::query_as::<_, Object>(q)
@@ -245,9 +249,9 @@ impl ObjectRepositoryTrait for ObjectRepository {
         let q = r#"
         UPDATE "Object" SET eliminated = $1, updated_at = $2  
         WHERE id = $3
-        RETURNING id, parent_id, owner_id, creator_id, name, size, type AS "type_", 
-        mimetype, created_at, updated_at, in_trash, eliminated 
-      "#;
+        RETURNING 
+        id, parent_id, owner_id, creator_id, name, size, type AS "type_", mimetype, created_at, updated_at, in_trash, eliminated, upload_s3, decode_key, hash_sha256
+          "#;
 
         sqlx::query_as::<_, Object>(q)
             .bind(true)

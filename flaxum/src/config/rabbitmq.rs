@@ -159,11 +159,9 @@ pub struct UploadUserEvent {
 
 impl UploadUserEvent {
     pub fn generate_key(key_length_bytes: usize) -> String {
-        let mut rng = rand::thread_rng();
-        let key: Vec<u8> = (0..key_length_bytes).map(|_| rng.gen()).collect();
-        let ans = hex::encode(key);
-        println!("debug {}", ans);
-        "eeef72847ca361dfb4dc22727910538a6339932998f56b124152690ef5516479".to_string()
+        let mut rng = rand::rng();
+        let key: Vec<u8> = (0..key_length_bytes).map(|_| rng.random()).collect();
+        hex::encode(key)
     }
 }
 

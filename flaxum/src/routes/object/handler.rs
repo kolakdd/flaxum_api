@@ -86,6 +86,9 @@ pub async fn create_own_folder(
         size: Some(0i64),
         type_: ObjectType::Dir,
         mimetype: None,
+        upload_s3: None,
+        decode_key: None,
+        hash_sha256: None,
     };
 
     let res = state
