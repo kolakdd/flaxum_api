@@ -92,7 +92,6 @@ impl FileUploaderConsumer {
     
         // Читаем и шифруем файл
         let data = fs::read(&path_to_file)?;
-        println!("RMQ: event = {:?}", event);
     
         let mut key = [0u8; 32];
         let nonce: [u8; 16] = {

@@ -23,7 +23,6 @@ pub async fn access_token(
     State(state): State<AuthState>,
     ValidatedRequest(payload): ValidatedRequest<UserLoginDto>,
 ) -> Result<Json<TokenReadDto>, ApiError> {
-    // todo: вынести всё в сервис
     let user = state
         .user_repo
         .select_by_email(payload.email)

@@ -91,6 +91,8 @@ impl ObjectRepositoryTrait for ObjectRepository {
         } else {
             q.push(" AND parent_id IS NULL ");
         };
+        q.push(" ORDER BY type asc, created_at desc ");
+
         let mut q = pagination_query_builder(q, &pagination);
         let res = q.build().fetch_all(self.db_conn.get_pool()).await?;
         let mut total_count = 0;
@@ -132,6 +134,8 @@ impl ObjectRepositoryTrait for ObjectRepository {
             q.push(r#" AND "UserXObject".user_id = "#);
             q.push_bind(uxo_owner);
         };
+        q.push(" ORDER BY type asc ");
+
         let mut q = pagination_query_builder(q, &pagination);
         let res = q.build().fetch_all(self.db_conn.get_pool()).await?;
         let mut total_count = 0;

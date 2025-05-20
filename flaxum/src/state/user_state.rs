@@ -10,7 +10,7 @@ pub struct UserState {
 }
 
 impl UserState {
-    pub fn new(db_conn: &Arc<Database>) -> UserState {
+    pub fn new(db_conn: &Arc<Database>) -> Self {
         UserState {
             user_service: UserService::new(db_conn),
             user_repo: UserRepository::new(db_conn),

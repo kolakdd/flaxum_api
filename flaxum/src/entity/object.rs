@@ -1,5 +1,5 @@
 use crate::scalar::Id;
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgRow, FromRow, Row};
 use uuid::Uuid;
@@ -43,8 +43,8 @@ pub struct Object {
     #[serde(rename = "type")]
     pub type_: ObjectType,
     pub mimetype: Option<String>,
-    pub created_at: chrono::NaiveDateTime,
-    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: Option<NaiveDateTime>,
     pub in_trash: bool,
     pub eliminated: bool,
     pub upload_s3: Option<bool>,
@@ -63,8 +63,8 @@ impl Object {
         size: Option<i64>,
         type_: ObjectType,
         mimetype: Option<String>,
-        created_at: chrono::NaiveDateTime,
-        updated_at: Option<chrono::NaiveDateTime>,
+        created_at: NaiveDateTime,
+        updated_at: Option<NaiveDateTime>,
         in_trash: bool,
         eliminated: bool,
         upload_s3: Option<bool>,

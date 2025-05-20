@@ -26,7 +26,7 @@ impl ObjectState {
         db_conn: &Arc<Database>,
         s3_client: &Arc<S3Client>,
         rmq_conn: &Arc<RMQConn>,
-    ) -> ObjectState {
+    ) -> Self {
         Self {
             user_repo: UserRepository::new(db_conn),
             token_service: TokenService::new(parameter::get("JWT_SECRET")),

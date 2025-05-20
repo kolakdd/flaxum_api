@@ -38,7 +38,7 @@ impl UserService {
             Some(_) => Err(UserError::UserAlreadyExists)?,
 
             None => {
-                let raw_password = crypto::generate_password().await;
+                let raw_password = crypto::generate_secret(12).await;
                 let hash_password = crypto::hash(raw_password.clone()).await.unwrap();
                 let creating_user = CreateUserDto {
                     email: payload.email,

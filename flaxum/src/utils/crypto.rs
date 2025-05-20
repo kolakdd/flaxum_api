@@ -33,9 +33,10 @@ pub async fn verify(password: String, hash: String) -> Result<bool> {
     .context("panic in verify()")?
 }
 
-pub async fn generate_password() -> String {
+/// Функция для генерации пароля/токена робота
+pub async fn generate_secret(len: usize) -> String {
     let pg = PasswordGenerator::new()
-        .length(12)
+        .length(len)
         .numbers(true)
         .lowercase_letters(true)
         .uppercase_letters(true)

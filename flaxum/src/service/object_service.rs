@@ -140,7 +140,6 @@ impl ObjectService {
                     .to_string();
 
                 let file_id = Id::new_v4();
-
                 let file_path = format!("tmp/{}.{}", user_id, file_id);
                 let mut file = fs::File::create(&file_path).await?;
                 let mut total_size: usize = 0;
@@ -165,8 +164,6 @@ impl ObjectService {
                         }
                     }
                 }
-                tracing::debug!("file uploaded.");
-
                 let mut obj_constructor = ObjectCreateModel::default();
                 obj_constructor.id = file_id;
                 obj_constructor.parent_id = object_parent;
@@ -182,45 +179,35 @@ impl ObjectService {
                 obj_constructor.decode_key = Some(key.clone());
                 
                 file.seek(SeekFrom::Start(0)).await?;
-                println!("seeked");
+
                 let hash_res = hasher.finalize();
                 let hash_sha256 = hex::encode(hash_res).to_string();
+
                 println!("hash_sha256 = {}", hash_sha256);
                 obj_constructor.hash_sha256 = Some(hash_sha256);
 
-
                 let mut tx = self.db_conn.get_pool().begin().await?;
-                println!("start tx = ");
-
                 let new_obj: Object = self
                     .object_repo
                     .insert_object(&mut tx, obj_constructor)
                     .await?;
-                println!("new_obj created ");
-
                 self.uxo_repo
                     .insert_uxo(&mut tx, new_obj.owner_id, new_obj.id, UxOAccess::owner())
                     .await?;
-                println!("uxo created ");
-        
+
                 let event = UploadUserEvent {
                     user_id: user_id.to_string(),
                     object_id: file_id.to_string(),
                     key: key,
                 };
-                println!("event registred ");
-
                 tracing::debug!("transaction ready");
-
+                
                 let rmq_con = self.rmq_conn.clone();
                 tokio::spawn(async move {
                     send_upload_user_event(event, &rmq_con).await;
                 });
-                
                 tracing::debug!("send_upload_user_event finished");
                 tx.commit().await?;
-                println!("ALL GOOD");
-
                 return Ok(new_obj);
             }
         }

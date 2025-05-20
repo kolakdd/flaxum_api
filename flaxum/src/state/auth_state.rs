@@ -14,7 +14,7 @@ pub struct AuthState {
 }
 
 impl AuthState {
-    pub fn new(db_conn: &Arc<Database>) -> AuthState {
+    pub fn new(db_conn: &Arc<Database>) -> Self {
         Self {
             token_service: TokenService::new(parameter::get("JWT_SECRET")),
             user_service: UserService::new(db_conn),
